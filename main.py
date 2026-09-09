@@ -195,17 +195,14 @@ async def set_cookie(message: Message) -> None:
     if len(parts) < 2:
         await message.answer("Использование: /setcookie <значение_PHPSESSID>")
         return
+    
+    # Извлечение чистого значения куки, если передали всей строкой "PHPSESSID=..."
     cookie = parts[1].strip()
+    if "PHPSESSID=" in cookie:
+        cookie = cookie.split("PHPSESSID=")[-1].split(";")[0].strip()
 
-    valid = await site_parser.check_cookie_valid(cookie)
     await db.set_setting("phpsessid", cookie)
-    if valid:
-        await message.answer("Кука сохранена и выглядит рабочей ✅")
-    else:
-        await message.answer(
-            "Кука сохранена, но проверка не прошла ⚠️. Возможно, она уже устарела "
-            "(капча/сессия истекает) — попробуйте получить новую."
-        )
+    await message.answer("Кука принудительно сохранена ✅!\nТеперь отправьте команду /update")
 
 
 @router.message(Command("update"))
@@ -246,19 +243,22 @@ async def run_update() -> str:
         for course, group_name, group_id in groups_data.GROUPS:
             try:
                 lessons = await site_parser.fetch_schedule(cookie, group_id)
-                await db.save_schedule_for_group(group_id, lessons)
-                updated += 1
-            except Exception:  # noqa: BLE001
-                logger.exception("Не удалось обновить группу %s (%s)", group_name, group_id)
+                if lessons:
+                    await db.save_schedule_for_group(group_id, lessons)
+                    updated += 1
+                else:
+                    errors += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Не удалось обновить группу %s (%s): %s", group_name, group_id, exc)
                 errors += 1
             await asyncio.sleep(0.3)
 
-        result = f"Готово! Обновлено групп: {updated}."
+        result = f"Готово! Успешно загружено групп: {updated}."
         if errors:
-            result += f" Ошибок: {errors} (смотрите логи)."
+            result += f" Не удалось загрузить / пустых: {errors}."
         return result
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Ошибка при обновлении расписания")
+        logger.exception("Ошибка при процессе обновления расписания")
         return f"Ошибка при обновлении: {exc}"
 
 
@@ -278,7 +278,7 @@ async def handle_health(request: web.Request) -> web.Response:
 
 async def run_health_server() -> None:
     app = web.Application()
-    app.router.add_get("/", handle_health)
+    app.router.add_get("/", handle_handle := handle_health)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
