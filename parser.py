@@ -1,25 +1,16 @@
 """
 Модуль работы с реальным API сайта lk.gubkin.ru.
-
-Найденный рабочий запрос (спасибо перехвату через Eruda):
-
-  GET https://lk.gubkin.ru/schedule/api/api.php?act=schedule&date=D-M-YYYY&groupId=<id>
-
-Отдаёт JSON с расписанием НА ВСЮ НЕДЕЛЮ (не на один день), сгруппированным
-по "organizations" (это города/кампусы — Москва, Оренбург, Ташкент, Атырау,
-у каждого свои номера временных слотов). Для нужной группы данные лежат внутри
-lessons того "organization", к которому реально относится группа — поэтому
-мы просто проверяем все organizations и берём то, где lessons не пустой.
-
-weekDayNumber в ответе: 0=понедельник ... 6=воскресенье — то есть совпадает
-1-в-1 с тем, что использует наш database.py, конвертировать не нужно.
 """
 
+import logging
 import httpx
 
 from config import BASE_URL
 
 API_URL = f"{BASE_URL}/schedule/api/api.php"
+
+# Настройка логирования для отслеживания ошибок в консоли Render
+logger = logging.getLogger(__name__)
 
 
 def _client(cookie: str) -> httpx.AsyncClient:
@@ -27,8 +18,7 @@ def _client(cookie: str) -> httpx.AsyncClient:
         cookies={"PHPSESSID": cookie},
         headers={
             "Accept": "application/json, text/plain, */*",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
         },
         timeout=30.0,
         follow_redirects=True,
@@ -55,59 +45,67 @@ def _format_teachers(teachers: list[dict]) -> str:
 
 
 async def fetch_schedule(cookie: str, group_id: int, date_str: str | None = None) -> list[dict]:
-    """
-    date_str в формате "D-M-YYYY" (например "10-9-2026"), без ведущих нулей.
-    Если не передать — берём сегодняшнюю дату. Один такой запрос отдаёт
-    расписание сразу на всю текущую неделю (по весам числитель/знаменатель
-    сайт сам разруливает — нам это видно не нужно учитывать отдельно).
-    """
     if date_str is None:
         from datetime import date
 
         today = date.today()
         date_str = f"{today.day}-{today.month}-{today.year}"
 
-    async with _client(cookie) as client:
-        response = await client.get(
-            API_URL, params={"act": "schedule", "date": date_str, "groupId": group_id}
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        if not data.get("state"):
-            return []
-
-        lessons: list[dict] = []
-        organizations = data.get("rows", {}).get("organizations", [])
-        for org in organizations:
-            time_chunks = org.get("lessonsTimeChunks", [])
-            for lesson in org.get("lessons", []):
-                rooms = lesson.get("rooms") or []
-                room = rooms[0]["number"] if rooms else ""
-                lessons.append(
-                    {
-                        "weekday": lesson.get("weekDayNumber"),
-                        "time_slot": _format_time_slot(time_chunks, lesson.get("timeChunks", [])),
-                        "subject": (lesson.get("course") or {}).get("name", ""),
-                        "room": room,
-                        "teacher": _format_teachers(lesson.get("teachers") or []),
-                        "lesson_type": lesson.get("type", ""),
-                        "week_parity": "all",
-                    }
-                )
-        return lessons
-
-
-async def check_cookie_valid(cookie: str, sample_group_id: int = 9336) -> bool:
-    """Простая проверка: сайт отвечает валидным JSON, а не ошибкой/редиректом на логин."""
     try:
         async with _client(cookie) as client:
             response = await client.get(
-                API_URL, params={"act": "schedule", "date": "1-9-2026", "groupId": sample_group_id}
+                API_URL, params={"act": "schedule", "date": date_str, "groupId": group_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if not data.get("state"):
+                logger.warning(f"[Group ID {group_id}] API вернул state=false (возможно кука сброшена)")
+                return []
+
+            lessons: list[dict] = []
+            organizations = data.get("rows", {}).get("organizations", [])
+            for org in organizations:
+                time_chunks = org.get("lessonsTimeChunks", [])
+                for lesson in org.get("lessons", []):
+                    rooms = lesson.get("rooms") or []
+                    room = rooms[0]["number"] if rooms else ""
+                    lessons.append(
+                        {
+                            "weekday": lesson.get("weekDayNumber"),
+                            "time_slot": _format_time_slot(time_chunks, lesson.get("timeChunks", [])),
+                            "subject": (lesson.get("course") or {}).get("name", ""),
+                            "room": room,
+                            "teacher": _format_teachers(lesson.get("teachers") or []),
+                            "lesson_type": lesson.get("type", ""),
+                            "week_parity": "all",
+                        }
+                    )
+            return lessons
+    except Exception as e:
+        logger.error(f"[Group ID {group_id}] Ошибка при запросе расписания: {e}")
+        return []
+
+
+async def check_cookie_valid(cookie: str, sample_group_id: int = 10494) -> bool:
+    """Проверяет валидность куки на реальной узбекской группе УРИ-26-01 (ID: 10494)."""
+    try:
+        async with _client(cookie) as client:
+            from datetime import date
+            today = date.today()
+            date_str = f"{today.day}-{today.month}-{today.year}"
+
+            response = await client.get(
+                API_URL, params={"act": "schedule", "date": date_str, "groupId": sample_group_id}
             )
             if response.status_code >= 400:
+                logger.warning(f"Проверка куки: сайт вернул статус {response.status_code}")
                 return False
             data = response.json()
-            return bool(data.get("state"))
-    except Exception:  # noqa: BLE001
+            is_valid = bool(data.get("state"))
+            if not is_valid:
+                logger.warning(f"Проверка куки: API ответил JSON без state=True ({data})")
+            return is_valid
+    except Exception as e:
+        logger.error(f"Ошибка проверки куки: {e}")
         return False
