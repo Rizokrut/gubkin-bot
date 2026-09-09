@@ -1,9 +1,4 @@
-from aiogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 
@@ -15,20 +10,13 @@ def courses_keyboard(courses: list[str]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def faculties_keyboard(faculties: list[str]) -> InlineKeyboardMarkup:
+def groups_keyboard(groups: list[tuple[str, int]]) -> InlineKeyboardMarkup:
+    """groups: список (group_name, group_id). callback_data хранит только id —
+    короткий и безопасный для лимита Telegram в 64 байта."""
     builder = InlineKeyboardBuilder()
-    for faculty in faculties:
-        builder.button(text=faculty, callback_data=f"faculty:{faculty}")
+    for group_name, group_id in groups:
+        builder.button(text=group_name, callback_data=f"group:{group_id}")
     builder.button(text="⬅️ Назад", callback_data="back_to_course")
-    builder.adjust(1)
-    return builder.as_markup()
-
-
-def groups_keyboard(groups: list[str]) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    for group in groups:
-        builder.button(text=group, callback_data=f"group:{group}")
-    builder.button(text="⬅️ Назад", callback_data="back_to_faculty")
     builder.adjust(2)
     return builder.as_markup()
 

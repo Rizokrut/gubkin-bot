@@ -1,19 +1,10 @@
 """
 Модуль работы с базой данных SQLite.
 
-Почему SQLite, а не Supabase:
-Supabase — это отдельный внешний сервис (облачный PostgreSQL), для которого
-нужно создавать аккаунт, проект, получать ключи и настраивать сетевые запросы
-из бота. Для бота с такой нагрузкой (личный расписание студентов одного филиала)
-это лишняя сложность и лишняя точка отказа. SQLite — это просто один файл
-(bot.db) прямо рядом с ботом, ничего дополнительно настраивать не нужно.
-Если позже вырастете из SQLite — база легко переносится в PostgreSQL/Supabase,
-структура таблиц ниже такая же простая.
-
-ВАЖНО про бесплатные тарифы Render/Railway: на бесплатном тарифе диск может
-быть "эфемерным" — то есть при новом деплое (не при обычном перезапуске)
-файл bot.db может обнулиться. Если это критично, в разделе инструкции
-по деплою я показываю, как подключить постоянный диск (persistent disk).
+Схема упрощена: только Курс -> Группа (без отдельного "факультета" — на
+реальном сайте выбор идёт именно так, факультет отдельным шагом не нужен).
+Каждая группа хранит свой числовой group_id — именно он нужен для запроса
+к API реального сайта (lk.gubkin.ru).
 """
 
 import aiosqlite
@@ -21,15 +12,14 @@ from config import DB_PATH
 
 
 async def init_db() -> None:
-    """Создаёт все нужные таблицы, если их ещё нет. Вызывается один раз при старте бота."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
                 telegram_id INTEGER PRIMARY KEY,
                 course TEXT,
-                faculty TEXT,
                 group_name TEXT,
+                group_id INTEGER,
                 created_at TEXT DEFAULT (datetime('now'))
             )
             """
@@ -38,23 +28,23 @@ async def init_db() -> None:
             """
             CREATE TABLE IF NOT EXISTS structure (
                 course TEXT NOT NULL,
-                faculty TEXT NOT NULL,
                 group_name TEXT NOT NULL,
-                PRIMARY KEY (course, faculty, group_name)
+                group_id INTEGER NOT NULL,
+                PRIMARY KEY (course, group_id)
             )
             """
         )
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS schedule (
-                group_name TEXT NOT NULL,
-                weekday INTEGER NOT NULL,      -- 0=понедельник ... 6=воскресенье
+                group_id INTEGER NOT NULL,
+                weekday INTEGER NOT NULL,
                 time_slot TEXT,
                 subject TEXT,
                 room TEXT,
                 teacher TEXT,
-                lesson_type TEXT,               -- лекция/семинар/лаб. и т.п., если есть
-                week_parity TEXT                -- 'all' / 'odd' / 'even', если расписание чередуется по неделям
+                lesson_type TEXT,
+                week_parity TEXT
             )
             """
         )
@@ -74,25 +64,23 @@ async def init_db() -> None:
 async def get_user(telegram_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
-        )
+        cursor = await db.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
         row = await cursor.fetchone()
         return dict(row) if row else None
 
 
-async def save_user(telegram_id: int, course: str, faculty: str, group_name: str) -> None:
+async def save_user(telegram_id: int, course: str, group_name: str, group_id: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
-            INSERT INTO users (telegram_id, course, faculty, group_name)
+            INSERT INTO users (telegram_id, course, group_name, group_id)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(telegram_id) DO UPDATE SET
                 course = excluded.course,
-                faculty = excluded.faculty,
-                group_name = excluded.group_name
+                group_name = excluded.group_name,
+                group_id = excluded.group_id
             """,
-            (telegram_id, course, faculty, group_name),
+            (telegram_id, course, group_name, group_id),
         )
         await db.commit()
 
@@ -104,7 +92,7 @@ async def count_users() -> int:
         return row[0] if row else 0
 
 
-# ---------- Структура курс -> факультет -> группа ----------
+# ---------- Структура курс -> группа ----------
 
 async def get_courses() -> list[str]:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -113,32 +101,22 @@ async def get_courses() -> list[str]:
         return [r[0] for r in rows]
 
 
-async def get_faculties(course: str) -> list[str]:
+async def get_groups(course: str) -> list[tuple[str, int]]:
+    """Возвращает список (group_name, group_id) для курса."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT DISTINCT faculty FROM structure WHERE course = ? ORDER BY faculty",
+            "SELECT group_name, group_id FROM structure WHERE course = ? ORDER BY group_name",
             (course,),
         )
-        rows = await cursor.fetchall()
-        return [r[0] for r in rows]
+        return await cursor.fetchall()
 
 
-async def get_groups(course: str, faculty: str) -> list[str]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(
-            "SELECT DISTINCT group_name FROM structure WHERE course = ? AND faculty = ? ORDER BY group_name",
-            (course, faculty),
-        )
-        rows = await cursor.fetchall()
-        return [r[0] for r in rows]
-
-
-async def save_structure(rows: list[tuple[str, str, str]]) -> None:
-    """rows: список (course, faculty, group_name). Полностью перезаписывает таблицу структуры."""
+async def save_structure(rows: list[tuple[str, str, int]]) -> None:
+    """rows: список (course, group_name, group_id). Полностью перезаписывает таблицу."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM structure")
         await db.executemany(
-            "INSERT OR IGNORE INTO structure (course, faculty, group_name) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO structure (course, group_name, group_id) VALUES (?, ?, ?)",
             rows,
         )
         await db.commit()
@@ -146,18 +124,17 @@ async def save_structure(rows: list[tuple[str, str, str]]) -> None:
 
 # ---------- Расписание ----------
 
-async def save_schedule_for_group(group_name: str, lessons: list[dict]) -> None:
-    """lessons: список словарей с ключами weekday, time_slot, subject, room, teacher, lesson_type, week_parity."""
+async def save_schedule_for_group(group_id: int, lessons: list[dict]) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM schedule WHERE group_name = ?", (group_name,))
+        await db.execute("DELETE FROM schedule WHERE group_id = ?", (group_id,))
         await db.executemany(
             """
-            INSERT INTO schedule (group_name, weekday, time_slot, subject, room, teacher, lesson_type, week_parity)
+            INSERT INTO schedule (group_id, weekday, time_slot, subject, room, teacher, lesson_type, week_parity)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
-                    group_name,
+                    group_id,
                     lesson.get("weekday"),
                     lesson.get("time_slot"),
                     lesson.get("subject"),
@@ -172,31 +149,23 @@ async def save_schedule_for_group(group_name: str, lessons: list[dict]) -> None:
         await db.commit()
 
 
-async def get_schedule_for_day(group_name: str, weekday: int) -> list[dict]:
+async def get_schedule_for_day(group_id: int, weekday: int) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            """
-            SELECT * FROM schedule
-            WHERE group_name = ? AND weekday = ?
-            ORDER BY time_slot
-            """,
-            (group_name, weekday),
+            "SELECT * FROM schedule WHERE group_id = ? AND weekday = ? ORDER BY time_slot",
+            (group_id, weekday),
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
 
 
-async def get_schedule_for_week(group_name: str) -> dict[int, list[dict]]:
+async def get_schedule_for_week(group_id: int) -> dict[int, list[dict]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            """
-            SELECT * FROM schedule
-            WHERE group_name = ?
-            ORDER BY weekday, time_slot
-            """,
-            (group_name,),
+            "SELECT * FROM schedule WHERE group_id = ? ORDER BY weekday, time_slot",
+            (group_id,),
         )
         rows = await cursor.fetchall()
     week: dict[int, list[dict]] = {i: [] for i in range(7)}
