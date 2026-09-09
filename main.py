@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -287,6 +289,28 @@ async def scheduled_update(bot: Bot) -> None:
 
 # ---------- Точка входа ----------
 
+async def handle_health(request: web.Request) -> web.Response:
+    return web.Response(text="ok")
+
+
+async def run_health_server() -> None:
+    """
+    Render Web Service ожидает открытый порт, иначе считает сервис нерабочим
+    (это отдельно от Telegram-бота, который работает через polling, а не через
+    HTTP). Этот сервер ничего не делает, кроме "да, я живой" на любой запрос.
+    Порт Render передаёт через переменную окружения PORT — не задавайте её
+    вручную, Render делает это сам.
+    """
+    app = web.Application()
+    app.router.add_get("/", handle_health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", "10000"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info("Health-check сервер запущен на порту %s", port)
+
+
 async def main() -> None:
     await db.init_db()
 
@@ -297,6 +321,8 @@ async def main() -> None:
     scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
     scheduler.add_job(scheduled_update, "cron", hour=3, minute=0, args=[bot])
     scheduler.start()
+
+    await run_health_server()
 
     logger.info("Бот запущен")
     await bot.delete_webhook(drop_pending_updates=True)
