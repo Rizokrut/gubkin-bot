@@ -1,13 +1,3 @@
-"""
-Парсер расписания через официальный API lk.gubkin.ru.
-
-Важно:
-- CAPTCHA не используется.
-- PHPSESSID не используется.
-- Запрос идёт напрямую к API.
-- Из ответа берётся только организация "Ташкент".
-"""
-
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -17,32 +7,38 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# ВАЖНО:
-# Не используем BASE_URL из config.py, потому что там по умолчанию
-# стоит lk.gubkin.uz, а API расписания находится на lk.gubkin.ru.
 API_URL = "https://lk.gubkin.ru/schedule/api/api.php"
-
 TASHKENT_ORGANIZATION = "Ташкент"
-
 REQUEST_TIMEOUT = 20.0
 
 
 class ScheduleAPIError(Exception):
-    """Ошибка ответа API расписания."""
+    pass
 
 
-class ScheduleFormatError(ScheduleAPIError):
-    """API вернул ответ в неожиданном формате."""
+class ScheduleFormatError(Exception):
+    pass
 
 
-# Оставляем для совместимости со старым main.py.
-# Новый main.py больше не будет использовать эту ошибку.
-class ScheduleAuthError(ScheduleAPIError):
-    """Старая ошибка авторизации. PHPSESSID больше не используется."""
+class ScheduleAuthError(Exception):
+    pass
 
 
-def _safe_text(value) -> str:
-    """Безопасно превращает значение в строку."""
+def _format_time(value):
+    if not value:
+        return ""
+
+    value = str(value).strip()
+
+    if ":" in value:
+        parts = value.split(":")
+        if len(parts) >= 2:
+            return f"{parts[0].zfill(2)}:{parts[1].zfill(2)}"
+
+    return value
+
+
+def _safe_text(value):
     if value is None:
         return ""
 
@@ -52,413 +48,17 @@ def _safe_text(value) -> str:
     return str(value).strip()
 
 
-def _format_time_slot(
-    time_chunks: list,
-    indices: list,
-) -> str:
-    """
-    Превращает:
-
-    ["8:30-9:15", "9:15-10:00", "10:10-10:55"]
-    [0, 1]
-
-    в:
-
-    8:30-10:00
-    """
-
-    if not indices:
-        return ""
-
-    valid_chunks = []
-
-    for index in indices:
-        try:
-            index = int(index)
-        except (TypeError, ValueError):
-            continue
-
-        if 0 <= index < len(time_chunks):
-            chunk = time_chunks[index]
-
-            if isinstance(chunk, str) and "-" in chunk:
-                valid_chunks.append(chunk.strip())
-
-            elif isinstance(chunk, dict):
-                # На случай, если API когда-нибудь начнёт
-                # возвращать интервалы объектами.
-                start = (
-                    chunk.get("start")
-                    or chunk.get("from")
-                    or chunk.get("begin")
-                    or ""
-                )
-                end = (
-                    chunk.get("end")
-                    or chunk.get("to")
-                    or chunk.get("finish")
-                    or ""
-                )
-
-                if start and end:
-                    valid_chunks.append(f"{start}-{end}")
-
-    if not valid_chunks:
-        return ""
-
-    first = valid_chunks[0]
-    last = valid_chunks[-1]
-
-    try:
-        start_time = first.split("-", 1)[0].strip()
-        end_time = last.split("-", 1)[1].strip()
-        return f"{start_time}-{end_time}"
-    except (IndexError, ValueError):
-        return first
-
-
-def _format_person(person) -> str:
-    """Извлекает имя преподавателя из разных вариантов структуры API."""
-
-    if not isinstance(person, dict):
-        return _safe_text(person)
-
-    # Возможные готовые поля.
-    for key in (
-        "fullName",
-        "fullname",
-        "name",
-        "fio",
-        "title",
-    ):
-        value = person.get(key)
-
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-
-    last_name = _safe_text(
-        person.get("lastName")
-        or person.get("surname")
-    )
-
-    first_name = _safe_text(
-        person.get("firstName")
-        or person.get("name")
-    )
-
-    patronymic = _safe_text(
-        person.get("patronymic")
-        or person.get("middleName")
-    )
-
-    parts = [
-        part
-        for part in (
-            last_name,
-            first_name,
-            patronymic,
-        )
-        if part
-    ]
-
-    return " ".join(parts)
-
-
-def _format_teachers(teachers) -> str:
-    """Форматирует список преподавателей."""
-
-    if not teachers:
-        return ""
-
-    if isinstance(teachers, dict):
-        teachers = [teachers]
-
-    names = []
-
-    for teacher in teachers:
-        name = _format_person(teacher)
-
-        if name:
-            names.append(name)
-
-    return ", ".join(dict.fromkeys(names))
-
-
-def _format_rooms(rooms) -> str:
-    """Форматирует список аудиторий."""
-
-    if not rooms:
-        return ""
-
-    if isinstance(rooms, dict):
-        rooms = [rooms]
-
-    result = []
-
-    for room in rooms:
-        if isinstance(room, dict):
-            value = (
-                room.get("number")
-                or room.get("name")
-                or room.get("title")
-                or room.get("room")
-                or ""
-            )
-        else:
-            value = room
-
-        value = _safe_text(value)
-
-        if value:
-            result.append(value)
-
-    return ", ".join(dict.fromkeys(result))
-
-
-def _extract_teacher_changes(changes) -> str:
-    """
-    Если у занятия есть замена преподавателя,
-    пытаемся взять преподавателя из changes.
-    """
-
-    if not isinstance(changes, dict):
-        return ""
-
-    changed_teachers = (
-        changes.get("teachers")
-        or changes.get("teacher")
-        or changes.get("lecturers")
-    )
-
-    if not changed_teachers:
-        return ""
-
-    return _format_teachers(changed_teachers)
-
-
-def _group_ids_from_lesson(lesson: dict) -> set[int]:
-    """
-    Извлекает ID групп, которым принадлежит занятие.
-
-    API может отдавать groups как:
-    - [10118, 10119]
-    - [{"id": 10118}, {"id": 10119}]
-    """
-
-    groups = lesson.get("groups")
-
-    if not groups:
-        return set()
-
-    if isinstance(groups, dict):
-        groups = [groups]
-
-    result = set()
-
-    for group in groups:
-        if isinstance(group, dict):
-            value = (
-                group.get("id")
-                or group.get("groupId")
-                or group.get("group_id")
-            )
-        else:
-            value = group
-
-        try:
-            result.add(int(value))
-        except (TypeError, ValueError):
-            continue
-
-    return result
-
-
-def _lesson_belongs_to_group(lesson: dict, group_id: int) -> bool:
-    """
-    Проверяет, относится ли занятие к запрошенной группе.
-
-    Если API вообще не передал groups, не отбрасываем занятие.
-    Это важно для специальных/общих мероприятий.
-    """
-
-    groups = _group_ids_from_lesson(lesson)
-
-    if not groups:
-        return True
-
-    return group_id in groups
-
-
-def _get_tashkent_organization(data: dict) -> dict | None:
-    """Находит организацию 'Ташкент' в JSON API."""
-
-    rows = data.get("rows")
-
-    if not isinstance(rows, dict):
-        return None
-
-    organizations = rows.get("organizations")
-
-    if not isinstance(organizations, list):
-        return None
-
-    for organization in organizations:
-        if not isinstance(organization, dict):
-            continue
-
-        name = _safe_text(organization.get("name"))
-
-        if name == TASHKENT_ORGANIZATION:
-            return organization
-
-    return None
-
-
-def _get_week_type(data: dict) -> str:
-    """
-    Получает тип недели именно для Ташкента.
-
-    Например:
-    lower
-    upper
-    """
-
-    rows = data.get("rows")
-
-    if not isinstance(rows, dict):
-        return "all"
-
-    week_data = rows.get("week")
-
-    if not isinstance(week_data, dict):
-        return "all"
-
-    tashkent_week = week_data.get("weekTashkent")
-
-    if not isinstance(tashkent_week, dict):
-        return "all"
-
-    week_type = _safe_text(tashkent_week.get("type"))
-
-    return week_type or "all"
-
-
-def _parse_lesson(
-    lesson: dict,
-    time_chunks: list,
-    week_type: str,
-    group_id: int,
-) -> dict | None:
-    """Превращает один объект API lesson в формат нашей БД."""
-
-    if not isinstance(lesson, dict):
-        return None
-
-    if not _lesson_belongs_to_group(lesson, group_id):
-        return None
-
-    weekday = lesson.get("weekDayNumber")
-
-    try:
-        weekday = int(weekday)
-    except (TypeError, ValueError):
-        return None
-
-    if weekday < 0 or weekday > 6:
-        return None
-
-    time_indices = lesson.get("timeChunks") or []
-
-    if not isinstance(time_indices, list):
-        time_indices = [time_indices]
-
-    time_slot = _format_time_slot(
-        time_chunks,
-        time_indices,
-    )
-
-    course = lesson.get("course")
-
-    if isinstance(course, dict):
-        subject = (
-            course.get("name")
-            or course.get("title")
-            or ""
-        )
-    else:
-        subject = course or ""
-
-    subject = _safe_text(subject)
-
-    lesson_type = _safe_text(
-        lesson.get("type")
-        or lesson.get("lessonType")
-        or ""
-    )
-
-    room = _format_rooms(
-        lesson.get("rooms") or []
-    )
-
-    teacher = _format_teachers(
-        lesson.get("teachers") or []
-    )
-
-    # Если обычный teachers пустой, но есть замена,
-    # показываем заменённого преподавателя.
-    changed_teacher = _extract_teacher_changes(
-        lesson.get("changes")
-    )
-
-    if changed_teacher:
-        teacher = changed_teacher
-
-    # Отменённые пары не удаляем.
-    # Иначе студент вообще не поймёт, что занятие отменили.
-    if lesson.get("isCanceled") is True:
-        if subject:
-            subject = f"❌ ОТМЕНЕНО: {subject}"
-        else:
-            subject = "❌ ОТМЕНЕНО"
-
-    # Если API почему-то прислал полностью пустую запись,
-    # не сохраняем мусор в БД.
-    if not subject and not time_slot and not room and not teacher:
-        return None
-
-    return {
-        "weekday": weekday,
-        "time_slot": time_slot,
-        "subject": subject,
-        "room": room,
-        "teacher": teacher,
-        "lesson_type": lesson_type,
-        "week_parity": week_type,
-    }
-
-
 async def fetch_schedule(
     group_id: int,
     date_str: str | None = None,
 ) -> list[dict]:
     """
-    Получает расписание группы напрямую через API.
-
-    PHPSESSID НЕ нужен.
-
-    Один запрос API возвращает данные всей недели.
+    Получает расписание группы через официальный API Губкинского университета.
     """
 
     if date_str is None:
-        tashkent_now = datetime.now(
-            ZoneInfo("Asia/Tashkent")
-        )
-
-        today = tashkent_now.date()
-
-        date_str = (
-            f"{today.day}-{today.month}-{today.year}"
-        )
+        now = datetime.now(ZoneInfo("Asia/Tashkent"))
+        date_str = f"{now.day}-{now.month}-{now.year}"
 
     params = {
         "act": "schedule",
@@ -473,19 +73,8 @@ async def fetch_schedule(
         params,
     )
 
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "User-Agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-            "AppleWebKit/605.1.15 "
-            "(KHTML, like Gecko) Version/17.0 "
-            "Mobile/15E148 Safari/604.1"
-        ),
-    }
-
     try:
         async with httpx.AsyncClient(
-            headers=headers,
             timeout=REQUEST_TIMEOUT,
             follow_redirects=True,
         ) as client:
@@ -495,168 +84,308 @@ async def fetch_schedule(
                 params=params,
             )
 
-            response.raise_for_status()
-
             logger.info(
-                "[Group %s] API status=%s content-type=%s bytes=%s",
+                "[Group %s] API response: status=%s url=%s",
                 group_id,
                 response.status_code,
-                response.headers.get("content-type"),
-                len(response.content),
+                response.url,
             )
 
+            response.raise_for_status()
+
             try:
-                data = response.json()
-            except ValueError as exc:
-                logger.error(
-                    "[Group %s] API вернул не JSON. Первые 500 символов: %s",
+                payload = response.json()
+            except Exception as exc:
+                logger.exception(
+                    "[Group %s] Не удалось распарсить JSON. "
+                    "Тип=%s repr=%r body=%r",
                     group_id,
-                    response.text[:500],
+                    type(exc).__name__,
+                    exc,
+                    response.text[:1000],
                 )
+
                 raise ScheduleFormatError(
-                    "API вернул не JSON"
+                    f"API вернул невалидный JSON: "
+                    f"{type(exc).__name__}: {exc!r}"
                 ) from exc
 
     except httpx.HTTPStatusError as exc:
-        logger.error(
-            "[Group %s] HTTP ошибка: %s",
+        logger.exception(
+            "[Group %s] HTTP ошибка. "
+            "status=%s type=%s repr=%r",
             group_id,
+            exc.response.status_code,
+            type(exc).__name__,
             exc,
         )
+
         raise ScheduleAPIError(
             f"HTTP {exc.response.status_code}"
         ) from exc
 
     except httpx.RequestError as exc:
-        logger.error(
-            "[Group %s] Ошибка соединения с API: %s",
+        logger.exception(
+            "[Group %s] ОШИБКА СОЕДИНЕНИЯ С API. "
+            "Тип=%s repr=%r args=%r",
             group_id,
+            type(exc).__name__,
+            exc,
+            getattr(exc, "args", None),
+        )
+
+        raise ScheduleAPIError(
+            f"Ошибка соединения: "
+            f"{type(exc).__name__}: {exc!r}"
+        ) from exc
+
+    except Exception as exc:
+        logger.exception(
+            "[Group %s] НЕОЖИДАННАЯ ОШИБКА. "
+            "Тип=%s repr=%r",
+            group_id,
+            type(exc).__name__,
             exc,
         )
+
         raise ScheduleAPIError(
-            f"Ошибка соединения: {exc}"
+            f"Неожиданная ошибка: "
+            f"{type(exc).__name__}: {exc!r}"
         ) from exc
+
+    if not isinstance(payload, dict):
+        logger.error(
+            "[Group %s] API вернул не dict: %r",
+            group_id,
+            payload,
+        )
+        raise ScheduleFormatError(
+            "Ответ API имеет неправильный формат"
+        )
+
+    logger.info(
+        "[Group %s] API state=%r",
+        group_id,
+        payload.get("state"),
+    )
+
+    if payload.get("state") is not True:
+        logger.error(
+            "[Group %s] API вернул state != True: %r",
+            group_id,
+            payload,
+        )
+
+        raise ScheduleAPIError(
+            f"API вернул state={payload.get('state')!r}"
+        )
+
+    data = payload.get("data")
 
     if not isinstance(data, dict):
         raise ScheduleFormatError(
-            "Корень JSON не является объектом"
+            "В ответе API отсутствует корректное поле data"
         )
 
-    # ВАЖНО:
-    # state=true означает, что API успешно отдал данные.
-    # Это НЕ связано с PHPSESSID.
-    if data.get("state") is not True:
-        logger.warning(
-            "[Group %s] API вернул state=%r",
-            group_id,
-            data.get("state"),
-        )
+    rows = data.get("rows")
 
-        # Иногда API может вернуть ошибку с дополнительным
-        # сообщением. Сохраняем его в лог.
-        logger.warning(
-            "[Group %s] API response keys=%s",
-            group_id,
-            list(data.keys()),
-        )
-
-        raise ScheduleAPIError(
-            f"API state={data.get('state')}"
-        )
-
-    organization = _get_tashkent_organization(data)
-
-    if organization is None:
-        logger.error(
-            "[Group %s] Организация 'Ташкент' не найдена в API.",
-            group_id,
-        )
-
-        organizations = (
-            data.get("rows", {})
-            .get("organizations", [])
-        )
-
-        names = []
-
-        if isinstance(organizations, list):
-            for org in organizations:
-                if isinstance(org, dict):
-                    names.append(
-                        _safe_text(org.get("name"))
-                    )
-
-        logger.error(
-            "[Group %s] Доступные организации: %s",
-            group_id,
-            names,
-        )
-
+    if not isinstance(rows, dict):
         raise ScheduleFormatError(
-            "Организация 'Ташкент' не найдена"
+            "В ответе API отсутствует корректное поле rows"
         )
 
-    time_chunks = organization.get(
-        "lessonsTimeChunks",
-        [],
-    )
+    organization = rows.get("organization")
 
-    if not isinstance(time_chunks, list):
-        time_chunks = []
-
-    lessons_from_api = organization.get(
-        "lessons",
-        [],
-    )
-
-    if not isinstance(lessons_from_api, list):
+    if not isinstance(organization, list):
         raise ScheduleFormatError(
-            "Поле Ташкент.lessons не является списком"
+            "В ответе API отсутствует список organization"
         )
 
-    week_type = _get_week_type(data)
+    tashkent = None
 
-    parsed_lessons = []
+    for item in organization:
+        if not isinstance(item, dict):
+            continue
 
-    for lesson in lessons_from_api:
-        parsed = _parse_lesson(
-            lesson=lesson,
-            time_chunks=time_chunks,
-            week_type=week_type,
-            group_id=group_id,
+        name = _safe_text(
+            item.get("name")
+            or item.get("title")
+            or item.get("organization")
         )
 
-        if parsed is not None:
-            parsed_lessons.append(parsed)
+        if name == TASHKENT_ORGANIZATION:
+            tashkent = item
+            break
 
-    # Сортируем расписание по дню и времени.
-    parsed_lessons.sort(
-        key=lambda item: (
-            item.get("weekday", 99),
-            item.get("time_slot", ""),
-            item.get("subject", ""),
+    if tashkent is None:
+        logger.warning(
+            "[Group %s] Организация %r не найдена",
+            group_id,
+            TASHKENT_ORGANIZATION,
         )
-    )
+        return []
+
+    week_type = "all"
+
+    week = rows.get("week")
+
+    if isinstance(week, dict):
+        week_tashkent = week.get("weekTashkent")
+
+        if isinstance(week_tashkent, dict):
+            week_type = (
+                _safe_text(
+                    week_tashkent.get("type")
+                )
+                or "all"
+            )
 
     logger.info(
-        "[Group %s] Ташкент: API lessons=%s, "
-        "parsed lessons=%s, week_type=%s",
+        "[Group %s] week_type=%s",
         group_id,
-        len(lessons_from_api),
-        len(parsed_lessons),
         week_type,
     )
 
-    return parsed_lessons
+    lessons_source = (
+        tashkent.get("lessons")
+        or tashkent.get("schedule")
+        or tashkent.get("rows")
+        or []
+    )
+
+    if isinstance(lessons_source, dict):
+        lessons_source = (
+            lessons_source.get("lessons")
+            or lessons_source.get("schedule")
+            or []
+        )
+
+    if not isinstance(lessons_source, list):
+        raise ScheduleFormatError(
+            "Список занятий имеет неправильный формат"
+        )
+
+    result = []
+
+    for lesson in lessons_source:
+        if not isinstance(lesson, dict):
+            continue
+
+        lesson_group_id = (
+            lesson.get("groupId")
+            or lesson.get("group_id")
+        )
+
+        if lesson_group_id is not None:
+            try:
+                if int(lesson_group_id) != int(group_id):
+                    continue
+            except (TypeError, ValueError):
+                pass
+
+        day = (
+            lesson.get("day")
+            or lesson.get("weekday")
+            or lesson.get("weekDay")
+            or ""
+        )
+
+        lesson_date = (
+            lesson.get("date")
+            or lesson.get("lessonDate")
+            or date_str
+        )
+
+        start_time = _format_time(
+            lesson.get("startTime")
+            or lesson.get("timeStart")
+            or lesson.get("start")
+            or ""
+        )
+
+        end_time = _format_time(
+            lesson.get("endTime")
+            or lesson.get("timeEnd")
+            or lesson.get("end")
+            or ""
+        )
+
+        time_value = _safe_text(
+            lesson.get("time")
+            or lesson.get("timeRange")
+            or ""
+        )
+
+        if not time_value and (start_time or end_time):
+            if start_time and end_time:
+                time_value = f"{start_time}-{end_time}"
+            else:
+                time_value = start_time or end_time
+
+        subject = _safe_text(
+            lesson.get("subject")
+            or lesson.get("discipline")
+            or lesson.get("name")
+            or lesson.get("title")
+            or ""
+        )
+
+        teacher = _safe_text(
+            lesson.get("teacher")
+            or lesson.get("teacherName")
+            or lesson.get("lecturer")
+            or ""
+        )
+
+        room = _safe_text(
+            lesson.get("room")
+            or lesson.get("auditorium")
+            or lesson.get("classroom")
+            or ""
+        )
+
+        lesson_type = _safe_text(
+            lesson.get("type")
+            or lesson.get("lessonType")
+            or ""
+        )
+
+        cancellation = _safe_text(
+            lesson.get("cancel")
+            or lesson.get("cancellation")
+            or lesson.get("cancelled")
+            or ""
+        )
+
+        result.append(
+            {
+                "group_id": int(group_id),
+                "date": _safe_text(lesson_date),
+                "day": _safe_text(day),
+                "time": time_value,
+                "start_time": start_time,
+                "end_time": end_time,
+                "subject": subject,
+                "teacher": teacher,
+                "room": room,
+                "type": lesson_type,
+                "cancellation": cancellation,
+                "week_type": week_type,
+            }
+        )
+
+    logger.info(
+        "[Group %s] Получено занятий: %s",
+        group_id,
+        len(result),
+    )
+
+    return result
 
 
-async def check_api(
-    sample_group_id: int = 10118,
-) -> bool:
+async def check_api(sample_group_id: int = 10118):
     """
-    Простая проверка API.
-
-    Можно использовать позже для диагностики.
+    Простая проверка доступности API.
     """
 
     try:
@@ -665,16 +394,18 @@ async def check_api(
         )
 
         logger.info(
-            "API check: group=%s lessons=%s",
+            "API CHECK SUCCESS: group=%s lessons=%s",
             sample_group_id,
             len(lessons),
         )
 
         return True
 
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            "API check failed for group=%s",
-            sample_group_id,
+            "API CHECK FAILED: type=%s repr=%r",
+            type(exc).__name__,
+            exc,
         )
+
         return False
