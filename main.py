@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
@@ -43,9 +44,17 @@ PER_GROUP_TIMEOUT = 25
 MAX_MESSAGE_LEN = 3500
 
 
+TZ = ZoneInfo("Asia/Tashkent")
+REMIND_MINUTES = 5
+
+
 class Registration(StatesGroup):
     choosing_course = State()
     choosing_group = State()
+
+
+class AdminBroadcast(StatesGroup):
+    waiting_text = State()
 
 
 def is_admin(telegram_id: int) -> bool:
@@ -85,28 +94,66 @@ async def send_long(message: Message, text: str) -> None:
         await asyncio.sleep(0.05)
 
 
-def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
-    header = f"<b>{WEEKDAY_NAMES_RU[weekday]}</b> — группа {group_name}\n\n"
-    if not lessons:
-        return header + "Пар нет 🎉"
+TYPE_ICON = {
+    "лекция": "📖",
+    "семинар": "💬",
+    "лабораторная работа": "🔬",
+    "лабораторная": "🔬",
+    "мероприятие": "📌",
+    "практика": "🛠",
+}
 
-    lines = []
-    for lesson in lessons:
-        type_part = f" ({lesson['lesson_type']})" if lesson.get("lesson_type") else ""
-        cancelled = lesson.get("is_cancelled")
-        if cancelled in (1, "1", True, "true", "True"):
-            lines.append(
-                f"⏰ <s>{lesson.get('time_slot', '')}</s>\n"
-                f"❌ <s>{lesson.get('subject', '')}{type_part}</s>\n"
+
+def _short_room(room: str) -> str:
+    text = (room or "").strip()
+    for junk in (" - филиал в г.Ташкент", " — филиал в г.Ташкент", " филиал в г.Ташкент"):
+        text = text.replace(junk, "")
+    return text.strip(" -—") or "—"
+
+
+def _is_cancelled_flag(value) -> bool:
+    return value in (1, "1", True, "true", "True")
+
+
+def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
+    day_name = WEEKDAY_NAMES_RU[weekday]
+    header = f"📅 <b>{day_name}</b>  ·  {group_name}\n"
+    if not lessons:
+        return header + "\nПар нет — можно выдохнуть 🎉"
+
+    active = [x for x in lessons if not _is_cancelled_flag(x.get("is_cancelled"))]
+    cancelled = [x for x in lessons if _is_cancelled_flag(x.get("is_cancelled"))]
+    header += f"пар: {len(active)}"
+    if cancelled:
+        header += f"  ·  отмен: {len(cancelled)}"
+    header += "\n"
+
+    blocks = []
+    for i, lesson in enumerate(lessons, start=1):
+        subject = (lesson.get("subject") or "Занятие").strip()
+        ltype = (lesson.get("lesson_type") or "").strip()
+        icon = TYPE_ICON.get(ltype.lower(), "📘")
+        time_slot = lesson.get("time_slot") or "—"
+        room = _short_room(lesson.get("room") or "")
+        teacher = (lesson.get("teacher") or "").strip()
+        type_line = f"{icon} {ltype}" if ltype else icon
+
+        if _is_cancelled_flag(lesson.get("is_cancelled")):
+            blocks.append(
+                f"<s>{i}. {time_slot}</s>\n"
+                f"❌ <s>{subject}</s>\n"
                 f"<i>Пара отменена</i>"
             )
-        else:
-            lines.append(
-                f"⏰ <b>{lesson.get('time_slot', '')}</b>\n"
-                f"📘 {lesson.get('subject', '')}{type_part}\n"
-                f"🚪 {lesson.get('room', '')}    👤 {lesson.get('teacher', '')}"
-            )
-    return header + "\n\n".join(lines)
+            continue
+
+        extra = f"\n👤 {teacher}" if teacher else ""
+        blocks.append(
+            f"<b>{i}. {time_slot}</b>\n"
+            f"{subject}\n"
+            f"{type_line}  ·  каб. {room}{extra}"
+        )
+
+    return header + "\n\n" + "\n\n".join(blocks)
 
 
 async def send_day_schedule(
@@ -121,7 +168,9 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     user = await db.get_user(message.from_user.id)
     if user and user.get("group_id"):
         await message.answer(
-            f"С возвращением! Ваша группа: <b>{user['group_name']}</b>",
+            f"С возвращением 👋\n"
+            f"Группа: <b>{user['group_name']}</b>\n\n"
+            f"Жми кнопки внизу — расписание на сегодня, завтра или всю неделю.",
             reply_markup=kb.main_menu_keyboard(),
         )
         return
@@ -136,7 +185,8 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
     await state.set_state(Registration.choosing_course)
     await message.answer(
-        "Привет! Давай выберем твою группу.\n\nШаг 1 из 2 — выбери курс:",
+        "Привет! Это расписание филиала Губкина в Ташкенте.\n\n"
+        "Шаг 1 из 2 — выбери курс:",
         reply_markup=kb.courses_keyboard(courses),
     )
 
@@ -177,14 +227,15 @@ async def choose_group(callback: CallbackQuery, state: FSMContext) -> None:
     group_name = next((name for name, gid in groups if gid == group_id), str(group_id))
     await db.save_user(callback.from_user.id, course, group_name, group_id)
     await state.clear()
-    await callback.message.edit_text(f"Готово! Твоя группа: <b>{group_name}</b>")
+    await callback.message.edit_text(f"Готово. Твоя группа: <b>{group_name}</b>")
     await callback.message.answer(
-        "Открываю главное меню 👇", reply_markup=kb.main_menu_keyboard()
+        "Меню внизу экрана 👇\nСегодня · Завтра · Неделя",
+        reply_markup=kb.main_menu_keyboard(),
     )
     await callback.answer()
 
 
-@router.message(F.text == "⚙️ Сменить группу")
+@router.message(F.text.in_({"👤 Группа", "⚙️ Сменить группу"}))
 async def change_group(message: Message, state: FSMContext) -> None:
     courses = await db.get_courses()
     if not courses:
@@ -196,7 +247,7 @@ async def change_group(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "📅 На сегодня")
+@router.message(F.text.in_({"📅 Сегодня", "📅 На сегодня"}))
 async def today_schedule(message: Message) -> None:
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
@@ -207,7 +258,7 @@ async def today_schedule(message: Message) -> None:
     )
 
 
-@router.message(F.text == "📆 На завтра")
+@router.message(F.text.in_({"🌅 Завтра", "📆 На завтра"}))
 async def tomorrow_schedule(message: Message) -> None:
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
@@ -217,7 +268,7 @@ async def tomorrow_schedule(message: Message) -> None:
     await send_day_schedule(message, user["group_name"], user["group_id"], weekday)
 
 
-@router.message(F.text == "🗓 На неделю")
+@router.message(F.text.in_({"🗓 Неделя", "🗓 На неделю"}))
 async def week_schedule(message: Message) -> None:
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
@@ -229,11 +280,115 @@ async def week_schedule(message: Message) -> None:
         await asyncio.sleep(0.15)
 
 
-@router.message(F.text == "🔗 Ссылка на сайт")
+@router.message(F.text.in_({"🔗 Сайт", "🔗 Ссылка на сайт"}))
 async def site_link(message: Message) -> None:
     user = await db.get_user(message.from_user.id)
-    group_name = user["group_name"] if user else ""
-    await message.answer(f"Сайт расписания: {BASE_URL}\nТвоя группа: <b>{group_name}</b>")
+    group_name = user["group_name"] if user else "не выбрана"
+    await message.answer(
+        f"Официальное расписание:\n{BASE_URL}\n\n"
+        f"Твоя группа в боте: <b>{group_name}</b>"
+    )
+
+
+@router.message(F.text.in_({"ℹ️ Помощь", "/help"}))
+async def help_text(message: Message) -> None:
+    await message.answer(
+        "<b>Как пользоваться</b>\n\n"
+        "📅 Сегодня — пары на этот день\n"
+        "🌅 Завтра — пары на следующий день\n"
+        "🗓 Неделя — пн–вс текущей недели\n"
+        "👤 Группа — сменить группу\n\n"
+        "❌ Зачёркнутая пара = отменена на сайте.\n"
+        "За 5 минут до пары бот пришлёт напоминание "
+        "(время Ташкента).\n"
+        "Расписание обновляет админ после нового сбора.\n"
+        "Напоминания включаются в ⚙️ Настройки."
+    )
+
+
+def _settings_text(prefs: dict, group_name: str | None) -> str:
+    on = bool(prefs.get("reminders_on", 1))
+    minutes = int(prefs.get("remind_minutes") or 5)
+    status = "включены" if on else "выключены"
+    lines = [
+        "<b>Настройки</b>",
+        "",
+        f"Группа: <b>{group_name or 'не выбрана'}</b>",
+        f"Напоминания: <b>{status}</b>",
+    ]
+    if on:
+        lines.append(f"Писать за <b>{minutes} мин</b> до пары")
+    lines.append("")
+    lines.append("Интервал виден, только если напоминания включены.")
+    return "\n".join(lines)
+
+
+@router.message(F.text == "⚙️ Настройки")
+async def open_settings(message: Message) -> None:
+    user = await db.get_user(message.from_user.id)
+    if not user:
+        await message.answer("Сначала выбери группу командой /start")
+        return
+    prefs = await db.get_user_prefs(message.from_user.id)
+    await message.answer(
+        _settings_text(prefs, user.get("group_name")),
+        reply_markup=kb.settings_keyboard(
+            bool(prefs["reminders_on"]), int(prefs["remind_minutes"])
+        ),
+    )
+
+
+@router.callback_query(F.data == "set:close")
+async def settings_close(callback: CallbackQuery) -> None:
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_text("Настройки закрыты.")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "set:group")
+async def settings_change_group(callback: CallbackQuery, state: FSMContext) -> None:
+    courses = await db.get_courses()
+    if not courses:
+        await callback.answer("База пуста", show_alert=True)
+        return
+    await state.set_state(Registration.choosing_course)
+    await callback.message.edit_text(
+        "Шаг 1 из 2 — выбери курс:", reply_markup=kb.courses_keyboard(courses)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "set:rem:off")
+async def settings_rem_off(callback: CallbackQuery) -> None:
+    await db.set_reminders_on(callback.from_user.id, False)
+    await _refresh_settings(callback)
+
+
+@router.callback_query(F.data == "set:rem:on")
+async def settings_rem_on(callback: CallbackQuery) -> None:
+    await db.set_reminders_on(callback.from_user.id, True)
+    await _refresh_settings(callback)
+
+
+@router.callback_query(F.data.startswith("set:min:"))
+async def settings_minutes(callback: CallbackQuery) -> None:
+    minutes = int(callback.data.split(":")[-1])
+    await db.set_remind_minutes(callback.from_user.id, minutes)
+    await _refresh_settings(callback)
+
+
+async def _refresh_settings(callback: CallbackQuery) -> None:
+    user = await db.get_user(callback.from_user.id)
+    prefs = await db.get_user_prefs(callback.from_user.id)
+    await callback.message.edit_text(
+        _settings_text(prefs, (user or {}).get("group_name")),
+        reply_markup=kb.settings_keyboard(
+            bool(prefs["reminders_on"]), int(prefs["remind_minutes"])
+        ),
+    )
+    await callback.answer()
 
 
 @router.message(Command("setcookie"))
@@ -363,7 +518,148 @@ async def stats(message: Message) -> None:
     if not is_admin(message.from_user.id):
         return
     count = await db.count_users()
-    await message.answer(f"Всего пользователей бота: <b>{count}</b>")
+    by_course = await db.users_by_course()
+    by_group = await db.users_by_group()
+    lines = [f"<b>Пользователей:</b> {count}", ""]
+    if by_course:
+        lines.append("<b>По курсам</b>")
+        for course, n in by_course:
+            lines.append(f"· {course}: {n}")
+        lines.append("")
+    if by_group:
+        lines.append("<b>По группам</b>")
+        for course, group_name, n in by_group:
+            lines.append(f"· {group_name} ({course}): {n}")
+    await message.answer("\n".join(lines))
+
+
+@router.message(Command("admin"))
+async def admin_help(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await message.answer(
+        "<b>Админ-команды</b>\n\n"
+        "/stats — сколько людей и в каких группах\n"
+        "/broadcast — рассылка всем\n"
+        "/update — обновить расписание из GitHub\n"
+        "/admin — это меню"
+    )
+
+
+@router.message(Command("broadcast"))
+async def broadcast_start(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await state.set_state(AdminBroadcast.waiting_text)
+    await message.answer(
+        "Напиши текст рассылки одним сообщением.\n"
+        "Можно HTML: <code>&lt;b&gt;жирный&lt;/b&gt;</code>\n\n"
+        "Отмена: /cancel"
+    )
+
+
+@router.message(Command("cancel"))
+async def broadcast_cancel(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await state.clear()
+    await message.answer("Отменил.")
+
+
+@router.message(AdminBroadcast.waiting_text)
+async def broadcast_send(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    text = (message.html_text or message.text or "").strip()
+    if not text:
+        await message.answer("Пусто. Напиши текст или /cancel")
+        return
+    await state.clear()
+    users = await db.get_all_users()
+    status = await message.answer(f"Рассылаю {len(users)} чел...")
+    ok = 0
+    fail = 0
+    for user in users:
+        try:
+            await message.bot.send_message(user["telegram_id"], text)
+            ok += 1
+        except Exception:
+            fail += 1
+        await asyncio.sleep(0.05)
+    await status.edit_text(f"Готово.\nДоставлено: {ok}\nНе дошло: {fail}")
+
+
+def _lesson_start_minutes(time_slot: str) -> int | None:
+    minutes = db._time_slot_to_minutes(time_slot)
+    if minutes >= 99999:
+        return None
+    return minutes
+
+
+def _short_room_admin(room: str) -> str:
+    text = (room or "").strip()
+    return text.replace(" - филиал в г.Ташкент", "").strip(" -—") or "—"
+
+
+async def send_pair_reminders(bot: Bot) -> None:
+    now = datetime.now(TZ)
+    weekday = now.weekday()
+    now_min = now.hour * 60 + now.minute
+    day_key = now.date().isoformat()
+    users = await db.get_all_users()
+    if not users:
+        return
+
+    grouped: dict[int, list[dict]] = {}
+    for user in users:
+        grouped.setdefault(user["group_id"], []).append(user)
+
+    for group_id, group_users in grouped.items():
+        lessons = await db.get_schedule_for_day(group_id, weekday)
+        for lesson in lessons:
+            if lesson.get("is_cancelled") in (1, "1", True):
+                continue
+            start = _lesson_start_minutes(lesson.get("time_slot") or "")
+            if start is None:
+                continue
+            subject = (lesson.get("subject") or "Пара").strip()
+            slot = lesson.get("time_slot") or ""
+            room = _short_room_admin(lesson.get("room") or "")
+            teacher = (lesson.get("teacher") or "").strip()
+            ltype = (lesson.get("lesson_type") or "").strip()
+
+            for user in group_users:
+                if not int(user.get("reminders_on") or 0):
+                    continue
+                lead = int(user.get("remind_minutes") or 5)
+                delta = start - now_min
+                if delta < lead - 1 or delta > lead:
+                    continue
+                already = await db.reminder_was_sent(
+                    user["telegram_id"], day_key, slot, subject
+                )
+                if already:
+                    continue
+                text = (
+                    f"Через {lead} мин пара\n\n"
+                    f"<b>{slot}</b>\n"
+                    f"{subject}"
+                )
+                if ltype:
+                    text += f" ({ltype})"
+                text += f"\nкаб. {room}"
+                if teacher:
+                    text += f"\n{teacher}"
+                try:
+                    await bot.send_message(user["telegram_id"], text)
+                    await db.mark_reminder_sent(
+                        user["telegram_id"], group_id, day_key, slot, subject
+                    )
+                except Exception:
+                    logger.exception(
+                        "Не отправилось напоминание %s", user["telegram_id"]
+                    )
+                await asyncio.sleep(0.03)
 
 
 async def handle_health(request: web.Request) -> web.Response:
@@ -397,6 +693,16 @@ async def main() -> None:
         args=[bot],
         id="daily_schedule_update",
         replace_existing=True,
+    )
+    scheduler.add_job(
+        send_pair_reminders,
+        "interval",
+        minutes=1,
+        args=[bot],
+        id="pair_reminders",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.start()
 

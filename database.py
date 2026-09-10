@@ -63,6 +63,26 @@ async def init_db() -> None:
             )
             """
         )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reminders (
+                telegram_id INTEGER NOT NULL,
+                group_id INTEGER NOT NULL,
+                day TEXT NOT NULL,
+                time_slot TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                PRIMARY KEY (telegram_id, day, time_slot, subject)
+            )
+            """
+        )
+        for stmt in (
+            "ALTER TABLE users ADD COLUMN reminders_on INTEGER DEFAULT 1",
+            "ALTER TABLE users ADD COLUMN remind_minutes INTEGER DEFAULT 5",
+        ):
+            try:
+                await db.execute(stmt)
+            except Exception:
+                pass
         await db.commit()
 
 
@@ -114,6 +134,62 @@ async def count_users() -> int:
         cursor = await db.execute("SELECT COUNT(*) FROM users")
         row = await cursor.fetchone()
         return row[0] if row else 0
+
+
+async def get_all_users() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT telegram_id, course, group_name, group_id, "
+            "COALESCE(reminders_on, 1) AS reminders_on, "
+            "COALESCE(remind_minutes, 5) AS remind_minutes "
+            "FROM users WHERE group_id IS NOT NULL"
+        )
+        return [dict(r) for r in await cursor.fetchall()]
+
+
+async def users_by_course() -> list[tuple[str, int]]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT course, COUNT(*) FROM users GROUP BY course ORDER BY course"
+        )
+        return await cursor.fetchall()
+
+
+async def users_by_group() -> list[tuple[str, str, int]]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT course, group_name, COUNT(*) FROM users "
+            "GROUP BY course, group_name ORDER BY course, group_name"
+        )
+        return await cursor.fetchall()
+
+
+async def reminder_was_sent(
+    telegram_id: int, day: str, time_slot: str, subject: str
+) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT 1 FROM reminders WHERE telegram_id = ? AND day = ? "
+            "AND time_slot = ? AND subject = ?",
+            (telegram_id, day, time_slot, subject),
+        )
+        return await cursor.fetchone() is not None
+
+
+async def mark_reminder_sent(
+    telegram_id: int, group_id: int, day: str, time_slot: str, subject: str
+) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO reminders
+            (telegram_id, group_id, day, time_slot, subject)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (telegram_id, group_id, day, time_slot, subject),
+        )
+        await db.commit()
 
 
 # ---------- Структура курс -> группа ----------
@@ -217,6 +293,38 @@ async def set_setting(key: str, value: str) -> None:
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
             """,
             (key, value),
+        )
+        await db.commit()
+
+
+async def get_user_prefs(telegram_id: int) -> dict:
+    user = await get_user(telegram_id)
+    if not user:
+        return {"reminders_on": 1, "remind_minutes": 5}
+    on = user.get("reminders_on")
+    minutes = user.get("remind_minutes")
+    if on is None:
+        on = 1
+    if not minutes:
+        minutes = 5
+    return {"reminders_on": int(on), "remind_minutes": int(minutes)}
+
+
+async def set_reminders_on(telegram_id: int, enabled: bool) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET reminders_on = ? WHERE telegram_id = ?",
+            (1 if enabled else 0, telegram_id),
+        )
+        await db.commit()
+
+
+async def set_remind_minutes(telegram_id: int, minutes: int) -> None:
+    minutes = min(30, max(5, int(minutes)))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET remind_minutes = ? WHERE telegram_id = ?",
+            (minutes, telegram_id),
         )
         await db.commit()
 
