@@ -13,11 +13,13 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+import cloudscraper
+from bs4 import BeautifulSoup
+
 import database as db
 import keyboards as kb
-import parser as site_parser
 import groups_data
-from config import BOT_TOKEN, ADMIN_ID
+from config import BOT_TOKEN, ADMIN_ID, BASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,6 +59,39 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
 async def send_day_schedule(message: Message, group_name: str, group_id: int, weekday: int) -> None:
     lessons = await db.get_schedule_for_day(group_id, weekday)
     await message.answer(format_day(group_name, weekday, lessons))
+
+
+# ---------- Обход Cloudflare ----------
+
+def fetch_with_cloudscraper(cookie: str, group_id: int) -> list[dict]:
+    url = f"{BASE_URL}/time-table/group/{group_id}"
+    scraper = cloudscraper.create_scraper()
+    headers = {
+        "Cookie": f"PHPSESSID={cookie}",
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+    }
+    
+    response = scraper.get(url, headers=headers, timeout=15)
+    if response.status_code != 200 or "table" not in response.text:
+        return []
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    tables = soup.find_all('table')
+    
+    parsed_lessons = []
+    for day_idx, table in enumerate(tables):
+        for row in table.find_all('tr'):
+            cols = [ele.text.strip() for ele in row.find_all(['td', 'th'])]
+            if len(cols) >= 2:
+                parsed_lessons.append({
+                    "weekday": day_idx,
+                    "time_slot": cols[0],
+                    "subject": cols[1] if len(cols) > 1 else "",
+                    "lesson_type": cols[2] if len(cols) > 2 else "",
+                    "room": cols[3] if len(cols) > 3 else "",
+                    "teacher": cols[4] if len(cols) > 4 else ""
+                })
+    return parsed_lessons
 
 
 # ---------- /start и регистрация ----------
@@ -178,8 +213,6 @@ async def week_schedule(message: Message) -> None:
 
 @router.message(F.text == "🔗 Ссылка на сайт")
 async def site_link(message: Message) -> None:
-    from config import BASE_URL
-
     user = await db.get_user(message.from_user.id)
     group_name = user["group_name"] if user else ""
     await message.answer(f"Сайт расписания: {BASE_URL}\nТвоя группа: <b>{group_name}</b>")
@@ -195,21 +228,17 @@ async def set_cookie(message: Message) -> None:
     if len(parts) < 2:
         await message.answer("Использование: /setcookie <значение_PHPSESSID>")
         return
-    
-    # Извлечение чистого значения куки, если передали всей строкой "PHPSESSID=..."
     cookie = parts[1].strip()
-    if "PHPSESSID=" in cookie:
-        cookie = cookie.split("PHPSESSID=")[-1].split(";")[0].strip()
 
     await db.set_setting("phpsessid", cookie)
-    await message.answer("Кука принудительно сохранена ✅!\nТеперь отправьте команду /update")
+    await message.answer("Кука сохранена ✅! Теперь выполните /update для скачивания всех 44 групп.")
 
 
 @router.message(Command("update"))
 async def force_update(message: Message) -> None:
     if not is_admin(message.from_user.id):
         return
-    await message.answer("Запускаю обновление расписания...")
+    await message.answer("Запускаю обход Cloudflare и обновление расписания...")
     result = await run_update()
     await message.answer(result)
 
@@ -242,23 +271,24 @@ async def run_update() -> str:
         errors = 0
         for course, group_name, group_id in groups_data.GROUPS:
             try:
-                lessons = await site_parser.fetch_schedule(cookie, group_id)
+                # Запускаем cloudscraper в фоновом потоке, чтобы не блокировать event loop
+                lessons = await asyncio.to_thread(fetch_with_cloudscraper, cookie, group_id)
                 if lessons:
                     await db.save_schedule_for_group(group_id, lessons)
                     updated += 1
                 else:
                     errors += 1
-            except Exception as exc:  # noqa: BLE001
-                logger.exception("Не удалось обновить группу %s (%s): %s", group_name, group_id, exc)
+            except Exception:  # noqa: BLE001
+                logger.exception("Не удалось обновить группу %s (%s)", group_name, group_id)
                 errors += 1
             await asyncio.sleep(0.3)
 
-        result = f"Готово! Успешно загружено групп: {updated}."
+        result = f"Готово! Успешно обновлено групп: {updated} из {len(groups_data.GROUPS)}."
         if errors:
-            result += f" Не удалось загрузить / пустых: {errors}."
+            result += f" Ошибок/пустых ответов: {errors}."
         return result
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Ошибка при процессе обновления расписания")
+        logger.exception("Ошибка при обновлении расписания")
         return f"Ошибка при обновлении: {exc}"
 
 
@@ -278,7 +308,7 @@ async def handle_health(request: web.Request) -> web.Response:
 
 async def run_health_server() -> None:
     app = web.Application()
-    app.router.add_get("/", handle_handle := handle_health)
+    app.router.add_get("/", handle_handle_health if 'handle_handle_health' in locals() else handle_health)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
