@@ -264,7 +264,15 @@ async def choose_group(callback: CallbackQuery, state: FSMContext) -> None:
 
     groups = await db.get_groups(course)
     group_name = next((name for name, gid in groups if gid == group_id), str(group_id))
-    await db.save_user(callback.from_user.id, course, group_name, group_id)
+    u = callback.from_user
+    await db.save_user(
+        u.id,
+        course,
+        group_name,
+        group_id,
+        username=u.username,
+        first_name=u.first_name,
+    )
     await state.clear()
     await callback.message.edit_text(f"Готово. Твоя группа: <b>{group_name}</b>")
     await callback.message.answer(
@@ -579,7 +587,19 @@ async def stats(message: Message) -> None:
         lines.append("<b>По группам</b>")
         for course, group_name, n in by_group:
             lines.append(f"· {group_name} ({course}): {n}")
-    await message.answer("\n".join(lines))
+    people = await db.list_users_detailed()
+    if people:
+        lines.append("")
+        lines.append("<b>Кто это</b>")
+        for p in people:
+            name = (p.get("first_name") or "").strip() or "без имени"
+            username = (p.get("username") or "").strip()
+            uid = p.get("telegram_id")
+            group = p.get("group_name") or "—"
+            link = f'<a href="tg://user?id={uid}">{name}</a>'
+            nick = f" @{username}" if username else ""
+            lines.append(f"· {link}{nick} — {group}")
+    await send_long(message, "\n".join(lines))
 
 
 @router.message(Command("admin"))

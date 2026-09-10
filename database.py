@@ -78,6 +78,8 @@ async def init_db() -> None:
         for stmt in (
             "ALTER TABLE users ADD COLUMN reminders_on INTEGER DEFAULT 1",
             "ALTER TABLE users ADD COLUMN remind_minutes INTEGER DEFAULT 5",
+            "ALTER TABLE users ADD COLUMN username TEXT",
+            "ALTER TABLE users ADD COLUMN first_name TEXT",
         ):
             try:
                 await db.execute(stmt)
@@ -113,18 +115,29 @@ async def get_user(telegram_id: int):
         return dict(row) if row else None
 
 
-async def save_user(telegram_id: int, course: str, group_name: str, group_id: int) -> None:
+async def save_user(
+    telegram_id: int,
+    course: str,
+    group_name: str,
+    group_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
-            INSERT INTO users (telegram_id, course, group_name, group_id)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO users (
+                telegram_id, course, group_name, group_id, username, first_name
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(telegram_id) DO UPDATE SET
                 course = excluded.course,
                 group_name = excluded.group_name,
-                group_id = excluded.group_id
+                group_id = excluded.group_id,
+                username = COALESCE(excluded.username, users.username),
+                first_name = COALESCE(excluded.first_name, users.first_name)
             """,
-            (telegram_id, course, group_name, group_id),
+            (telegram_id, course, group_name, group_id, username, first_name),
         )
         await db.commit()
 
@@ -144,6 +157,16 @@ async def get_all_users() -> list[dict]:
             "COALESCE(reminders_on, 1) AS reminders_on, "
             "COALESCE(remind_minutes, 5) AS remind_minutes "
             "FROM users WHERE group_id IS NOT NULL"
+        )
+        return [dict(r) for r in await cursor.fetchall()]
+
+
+async def list_users_detailed() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT telegram_id, username, first_name, course, group_name "
+            "FROM users ORDER BY course, group_name, telegram_id"
         )
         return [dict(r) for r in await cursor.fetchall()]
 
