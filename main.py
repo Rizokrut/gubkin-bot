@@ -1,23 +1,29 @@
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command
-from aiogram.types import Message
 from aiohttp import web
+from aiogram import Bot, Dispatcher, F, Router
+from aiogram.client.default import DefaultBotProperties
+from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message, CallbackQuery
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 
-import config
-import database
+import database as db
+import keyboards as kb
+import groups_data
 import parser as site_parser
-import keyboards
+
+from config import BOT_TOKEN, ADMIN_ID, BASE_URL
 
 
-# =========================
+# =========================================================
 # LOGGING
-# =========================
+# =========================================================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,577 +33,654 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# =========================
-# BOT
-# =========================
+# =========================================================
+# ROUTER
+# =========================================================
 
-bot = Bot(token=config.BOT_TOKEN)
-dp = Dispatcher()
-
-
-# =========================
-# HEALTH CHECK
-# =========================
-
-async def handle_health(request):
-    return web.Response(text="OK")
+router = Router()
 
 
-async def start_web_server():
-    app = web.Application()
-    app.router.add_get("/", handle_health)
+WEEKDAY_NAMES_RU = [
+    "Понедельник",
+    "Вторник",
+    "Среда",
+    "Четверг",
+    "Пятница",
+    "Суббота",
+    "Воскресенье",
+]
 
-    runner = web.AppRunner(app)
-    await runner.setup()
 
-    site = web.TCPSite(
-        runner,
-        "0.0.0.0",
-        int(config.PORT),
+# =========================================================
+# REGISTRATION STATES
+# =========================================================
+
+class Registration(StatesGroup):
+    choosing_course = State()
+    choosing_group = State()
+
+
+# =========================================================
+# ADMIN
+# =========================================================
+
+def is_admin(telegram_id: int) -> bool:
+    return telegram_id == ADMIN_ID
+
+
+# =========================================================
+# FORMAT SCHEDULE
+# =========================================================
+
+def format_day(
+    group_name: str,
+    weekday: int,
+    lessons: list[dict],
+) -> str:
+
+    header = (
+        f"<b>{WEEKDAY_NAMES_RU[weekday]}</b> "
+        f"— группа {group_name}\n\n"
     )
 
-    await site.start()
+    if not lessons:
+        return header + "Пар нет 🎉"
 
-    logger.info("Health server started on port %s", config.PORT)
+    lines = []
 
+    for lesson in lessons:
 
-# =========================
-# START
-# =========================
-
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
-    user_id = message.from_user.id
-
-    await database.save_user(
-        user_id=user_id,
-        username=message.from_user.username,
-        first_name=message.from_user.first_name,
-    )
-
-    groups = await database.get_groups()
-
-    if not groups:
-        await message.answer(
-            "⚠️ Список групп пока не загружен."
+        type_part = (
+            f" ({lesson['lesson_type']})"
+            if lesson.get("lesson_type")
+            else ""
         )
-        return
+
+        lines.append(
+            f"⏰ <b>{lesson.get('time_slot', '')}</b>\n"
+            f"📘 {lesson.get('subject', '')}{type_part}\n"
+            f"🚪 {lesson.get('room', '')}    "
+            f"👤 {lesson.get('teacher', '')}"
+        )
+
+    return header + "\n\n".join(lines)
+
+
+# =========================================================
+# SEND ONE DAY
+# =========================================================
+
+async def send_day_schedule(
+    message: Message,
+    group_name: str,
+    group_id: int,
+    weekday: int,
+) -> None:
+
+    lessons = await db.get_schedule_for_day(
+        group_id,
+        weekday,
+    )
 
     await message.answer(
-        "Привет! 👋\n\n"
-        "Выбери свою группу:",
-        reply_markup=keyboards.groups_keyboard(groups),
+        format_day(
+            group_name,
+            weekday,
+            lessons,
+        )
     )
 
 
-# =========================
-# GROUP SELECTION
-# =========================
+# =========================================================
+# /START
+# =========================================================
 
-@dp.callback_query(F.data.startswith("group:"))
-async def select_group(callback):
-    try:
-        group_id = int(callback.data.split(":")[1])
-    except Exception:
-        await callback.answer("Ошибка группы", show_alert=True)
+@router.message(CommandStart())
+async def cmd_start(
+    message: Message,
+    state: FSMContext,
+) -> None:
+
+    user = await db.get_user(
+        message.from_user.id
+    )
+
+    if user and user.get("group_id"):
+
+        await message.answer(
+            f"С возвращением! "
+            f"Ваша группа: <b>{user['group_name']}</b>",
+            reply_markup=kb.main_menu_keyboard(),
+        )
+
         return
 
-    user_id = callback.from_user.id
+    courses = await db.get_courses()
 
-    await database.save_user(
-        user_id=user_id,
-        username=callback.from_user.username,
-        first_name=callback.from_user.first_name,
-        group_id=group_id,
+    if not courses:
+
+        await message.answer(
+            "База расписания пока пуста.\n\n"
+            "Попросите администратора выполнить "
+            "команду /update."
+        )
+
+        return
+
+    await state.set_state(
+        Registration.choosing_course
     )
 
-    groups = await database.get_groups()
+    await message.answer(
+        "Привет! Давай выберем твою группу.\n\n"
+        "Шаг 1 из 2 — выбери курс:",
+        reply_markup=kb.courses_keyboard(courses),
+    )
 
-    group_name = None
 
-    for group in groups:
-        if isinstance(group, dict):
-            if int(group.get("id", -1)) == group_id:
-                group_name = group.get("name")
-                break
-        else:
-            try:
-                if int(group[0]) == group_id:
-                    group_name = group[1]
-                    break
-            except Exception:
-                pass
+# =========================================================
+# CHOOSE COURSE
+# =========================================================
 
-    if not group_name:
-        group_name = str(group_id)
+@router.callback_query(
+    Registration.choosing_course,
+    F.data.startswith("course:")
+)
+async def choose_course(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+
+    course = callback.data.split(
+        ":",
+        1
+    )[1]
+
+    await state.update_data(
+        course=course
+    )
+
+    groups = await db.get_groups(
+        course
+    )
+
+    await state.set_state(
+        Registration.choosing_group
+    )
 
     await callback.message.edit_text(
-        f"✅ Группа выбрана: <b>{group_name}</b>\n\n"
-        "Что хочешь посмотреть?",
-        reply_markup=keyboards.schedule_keyboard(),
-        parse_mode="HTML",
+        f"Курс: {course}\n\n"
+        "Шаг 2 из 2 — выбери группу:",
+        reply_markup=kb.groups_keyboard(groups),
     )
 
     await callback.answer()
 
 
-# =========================
-# TODAY
-# =========================
+# =========================================================
+# BACK TO COURSE
+# =========================================================
 
-@dp.callback_query(F.data == "today")
-async def show_today(callback):
-    user = await database.get_user(callback.from_user.id)
+@router.callback_query(
+    Registration.choosing_group,
+    F.data == "back_to_course"
+)
+async def back_to_course(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
 
-    if not user:
+    courses = await db.get_courses()
+
+    await state.set_state(
+        Registration.choosing_course
+    )
+
+    await callback.message.edit_text(
+        "Шаг 1 из 2 — выбери курс:",
+        reply_markup=kb.courses_keyboard(courses),
+    )
+
+    await callback.answer()
+
+
+# =========================================================
+# CHOOSE GROUP
+# =========================================================
+
+@router.callback_query(
+    Registration.choosing_group,
+    F.data.startswith("group:")
+)
+async def choose_group(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+
+    group_id = int(
+        callback.data.split(
+            ":",
+            1
+        )[1]
+    )
+
+    data = await state.get_data()
+
+    course = data.get("course")
+
+    if not course:
         await callback.answer(
-            "Сначала выбери группу через /start",
+            "Сначала выбери курс",
             show_alert=True,
         )
         return
 
-    group_id = user["group_id"]
+    groups = await db.get_groups(
+        course
+    )
 
-    if not group_id:
-        await callback.answer(
-            "Сначала выбери группу через /start",
-            show_alert=True,
-        )
-        return
+    group_name = next(
+        (
+            name
+            for name, gid in groups
+            if gid == group_id
+        ),
+        str(group_id),
+    )
 
-    today = datetime.now().date()
-
-    schedule = await database.get_schedule_for_day(
+    await db.save_user(
+        callback.from_user.id,
+        course,
+        group_name,
         group_id,
-        today,
     )
 
-    text = format_schedule(
-        schedule,
-        today,
-        "Сегодня",
-    )
+    await state.clear()
 
     await callback.message.edit_text(
-        text,
-        reply_markup=keyboards.schedule_keyboard(),
-        parse_mode="HTML",
+        f"Готово! Твоя группа: "
+        f"<b>{group_name}</b>"
     )
-
-    await callback.answer()
-
-
-# =========================
-# TOMORROW
-# =========================
-
-@dp.callback_query(F.data == "tomorrow")
-async def show_tomorrow(callback):
-    user = await database.get_user(callback.from_user.id)
-
-    if not user:
-        await callback.answer(
-            "Сначала выбери группу через /start",
-            show_alert=True,
-        )
-        return
-
-    group_id = user["group_id"]
-
-    if not group_id:
-        await callback.answer(
-            "Сначала выбери группу через /start",
-            show_alert=True,
-        )
-        return
-
-    tomorrow = datetime.now().date() + timedelta(days=1)
-
-    schedule = await database.get_schedule_for_day(
-        group_id,
-        tomorrow,
-    )
-
-    text = format_schedule(
-        schedule,
-        tomorrow,
-        "Завтра",
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=keyboards.schedule_keyboard(),
-        parse_mode="HTML",
-    )
-
-    await callback.answer()
-
-
-# =========================
-# WEEK
-# =========================
-
-@dp.callback_query(F.data == "week")
-async def show_week(callback):
-    user = await database.get_user(callback.from_user.id)
-
-    if not user:
-        await callback.answer(
-            "Сначала выбери группу через /start",
-            show_alert=True,
-        )
-        return
-
-    group_id = user["group_id"]
-
-    if not group_id:
-        await callback.answer(
-            "Сначала выбери группу через /start",
-            show_alert=True,
-        )
-        return
-
-    today = datetime.now().date()
-
-    schedule = await database.get_schedule_for_week(
-        group_id,
-        today,
-    )
-
-    text = format_week_schedule(schedule)
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=keyboards.schedule_keyboard(),
-        parse_mode="HTML",
-    )
-
-    await callback.answer()
-
-
-# =========================
-# BACK TO GROUPS
-# =========================
-
-@dp.callback_query(F.data == "change_group")
-async def change_group(callback):
-    groups = await database.get_groups()
-
-    await callback.message.edit_text(
-        "Выбери группу:",
-        reply_markup=keyboards.groups_keyboard(groups),
-    )
-
-    await callback.answer()
-
-
-# =========================
-# SITE
-# =========================
-
-@dp.callback_query(F.data == "site")
-async def open_site(callback):
-    await callback.answer()
 
     await callback.message.answer(
-        "🌐 Личный кабинет университета:\n"
-        "https://lk.gubkin.ru/"
+        "Открываю главное меню 👇",
+        reply_markup=kb.main_menu_keyboard(),
+    )
+
+    await callback.answer()
+
+
+# =========================================================
+# CHANGE GROUP
+# =========================================================
+
+@router.message(
+    F.text == "⚙️ Сменить группу"
+)
+async def change_group(
+    message: Message,
+    state: FSMContext,
+) -> None:
+
+    courses = await db.get_courses()
+
+    if not courses:
+
+        await message.answer(
+            "База расписания пока пуста."
+        )
+
+        return
+
+    await state.set_state(
+        Registration.choosing_course
+    )
+
+    await message.answer(
+        "Шаг 1 из 2 — выбери курс:",
+        reply_markup=kb.courses_keyboard(courses),
     )
 
 
-# =========================
-# FORMAT SCHEDULE
-# =========================
+# =========================================================
+# TODAY
+# =========================================================
 
-def format_schedule(schedule, date, title):
-    if not schedule:
-        return (
-            f"📅 <b>{title}</b>\n"
-            f"{date.strftime('%d.%m.%Y')}\n\n"
-            "🎉 Пар нет!"
+@router.message(
+    F.text == "📅 На сегодня"
+)
+async def today_schedule(
+    message: Message,
+) -> None:
+
+    user = await db.get_user(
+        message.from_user.id
+    )
+
+    if not user or not user.get("group_id"):
+
+        await message.answer(
+            "Сначала выбери группу командой /start"
         )
 
-    lines = [
-        f"📅 <b>{title}</b>",
-        date.strftime("%d.%m.%Y"),
-        "",
-    ]
+        return
 
-    for lesson in schedule:
-        if isinstance(lesson, dict):
-            time_start = lesson.get("time_start", "")
-            time_end = lesson.get("time_end", "")
-            subject = lesson.get("subject", "Без названия")
-            teacher = lesson.get("teacher", "")
-            room = lesson.get("room", "")
-            lesson_type = lesson.get("type", "")
+    weekday = datetime.now().weekday()
 
-        else:
-            # На случай старого формата БД
-            try:
-                time_start = lesson[0]
-                time_end = lesson[1]
-                subject = lesson[2]
-                teacher = lesson[3]
-                room = lesson[4]
-                lesson_type = lesson[5]
-            except Exception:
-                subject = str(lesson)
-                time_start = ""
-                time_end = ""
-                teacher = ""
-                room = ""
-                lesson_type = ""
+    await send_day_schedule(
+        message,
+        user["group_name"],
+        user["group_id"],
+        weekday,
+    )
 
-        time_text = ""
 
-        if time_start and time_end:
-            time_text = f"🕐 {time_start}–{time_end}"
-        elif time_start:
-            time_text = f"🕐 {time_start}"
+# =========================================================
+# TOMORROW
+# =========================================================
 
-        lines.append(
-            f"<b>{subject}</b>"
+@router.message(
+    F.text == "📆 На завтра"
+)
+async def tomorrow_schedule(
+    message: Message,
+) -> None:
+
+    user = await db.get_user(
+        message.from_user.id
+    )
+
+    if not user or not user.get("group_id"):
+
+        await message.answer(
+            "Сначала выбери группу командой /start"
         )
 
-        if time_text:
-            lines.append(time_text)
+        return
 
-        if teacher:
-            lines.append(f"👨‍🏫 {teacher}")
+    weekday = (
+        datetime.now()
+        + timedelta(days=1)
+    ).weekday()
 
-        if room:
-            lines.append(f"🚪 {room}")
-
-        if lesson_type:
-            lines.append(f"📚 {lesson_type}")
-
-        lines.append("")
-
-    return "\n".join(lines)
+    await send_day_schedule(
+        message,
+        user["group_name"],
+        user["group_id"],
+        weekday,
+    )
 
 
-# =========================
-# FORMAT WEEK
-# =========================
+# =========================================================
+# WEEK
+# =========================================================
 
-def format_week_schedule(schedule):
-    if not schedule:
-        return "📅 <b>Расписание на неделю</b>\n\nПар нет."
+@router.message(
+    F.text == "🗓 На неделю"
+)
+async def week_schedule(
+    message: Message,
+) -> None:
 
-    lines = [
-        "📅 <b>Расписание на неделю</b>",
-        "",
-    ]
+    user = await db.get_user(
+        message.from_user.id
+    )
 
-    current_date = None
+    if not user or not user.get("group_id"):
 
-    for item in schedule:
-        if isinstance(item, dict):
-            date = item.get("date")
-            time_start = item.get("time_start", "")
-            time_end = item.get("time_end", "")
-            subject = item.get("subject", "Без названия")
-            teacher = item.get("teacher", "")
-            room = item.get("room", "")
-            lesson_type = item.get("type", "")
-
-        else:
-            try:
-                date = item[0]
-                time_start = item[1]
-                time_end = item[2]
-                subject = item[3]
-                teacher = item[4]
-                room = item[5]
-                lesson_type = item[6]
-            except Exception:
-                continue
-
-        if date != current_date:
-            current_date = date
-
-            lines.append(
-                f"\n📌 <b>{date}</b>"
-            )
-
-        time_text = ""
-
-        if time_start and time_end:
-            time_text = f"{time_start}–{time_end}"
-        elif time_start:
-            time_text = time_start
-
-        lines.append(
-            f"• <b>{time_text}</b> — {subject}"
+        await message.answer(
+            "Сначала выбери группу командой /start"
         )
 
-        if teacher:
-            lines.append(
-                f"  👨‍🏫 {teacher}"
+        return
+
+    group_name = user["group_name"]
+
+    week = await db.get_schedule_for_week(
+        user["group_id"]
+    )
+
+    for weekday in range(7):
+
+        await message.answer(
+            format_day(
+                group_name,
+                weekday,
+                week[weekday],
             )
+        )
 
-        if room:
-            lines.append(
-                f"  🚪 {room}"
-            )
-
-        if lesson_type:
-            lines.append(
-                f"  📚 {lesson_type}"
-            )
-
-    return "\n".join(lines)
+        await asyncio.sleep(0.1)
 
 
-# =========================
-# SET COOKIE
-# =========================
+# =========================================================
+# SITE
+# =========================================================
 
-@dp.message(Command("setcookie"))
-async def set_cookie(message: Message):
-    parts = message.text.split(maxsplit=1)
+@router.message(
+    F.text == "🔗 Ссылка на сайт"
+)
+async def site_link(
+    message: Message,
+) -> None:
+
+    user = await db.get_user(
+        message.from_user.id
+    )
+
+    group_name = (
+        user["group_name"]
+        if user
+        else ""
+    )
+
+    await message.answer(
+        f"Сайт расписания: {BASE_URL}\n"
+        f"Твоя группа: <b>{group_name}</b>"
+    )
+
+
+# =========================================================
+# /SETCOOKIE
+# =========================================================
+
+@router.message(
+    Command("setcookie")
+)
+async def set_cookie(
+    message: Message,
+) -> None:
+
+    if not is_admin(
+        message.from_user.id
+    ):
+        return
+
+    parts = message.text.split(
+        maxsplit=1
+    )
 
     if len(parts) < 2:
+
         await message.answer(
             "Использование:\n\n"
-            "<code>/setcookie PHPSESSID=твой_cookie</code>\n\n"
-            "или просто:\n"
-            "<code>/setcookie твой_cookie</code>",
-            parse_mode="HTML",
+            "/setcookie PHPSESSID=твой_cookie"
         )
+
         return
 
     cookie = parts[1].strip()
 
-    if not cookie:
-        await message.answer("❌ Cookie пустой.")
-        return
+    if cookie.startswith(
+        "PHPSESSID="
+    ):
+        cookie = cookie.split(
+            "=",
+            1
+        )[1].strip()
 
-    await database.set_setting(
+    await db.set_setting(
         "phpsessid",
         cookie,
     )
 
+    logger.info(
+        "PHPSESSID saved"
+    )
+
     await message.answer(
-        "✅ Cookie сохранён.\n\n"
-        "Теперь можно запускать:\n"
-        "<code>/update</code>",
-        parse_mode="HTML",
+        "Кука сохранена ✅\n\n"
+        "Теперь запускай /update"
+    )
+
+
+# =========================================================
+# /UPDATE
+# =========================================================
+
+@router.message(
+    Command("update")
+)
+async def force_update(
+    message: Message,
+) -> None:
+
+    if not is_admin(
+        message.from_user.id
+    ):
+        return
+
+    status = await message.answer(
+        "⏳ <b>Обновляю расписание...</b>\n\n"
+        "Подготовка..."
+    )
+
+    result = await run_update(
+        status
+    )
+
+    try:
+        await status.edit_text(
+            result
+        )
+    except Exception:
+        logger.exception(
+            "Не удалось изменить итоговое сообщение"
+        )
+
+
+# =========================================================
+# RUN UPDATE
+# =========================================================
+
+async def run_update(
+    status_message: Message | None = None,
+) -> str:
+
+    logger.info(
+        "========================================"
+    )
+    logger.info(
+        "UPDATE STARTED"
+    )
+    logger.info(
+        "========================================"
+    )
+
+    # -----------------------------------------------------
+    # GROUPS
+    # -----------------------------------------------------
+
+    if not groups_data.GROUPS:
+
+        logger.error(
+            "groups_data.GROUPS is empty"
+        )
+
+        return (
+            "❌ Список групп пуст."
+        )
+
+    total = len(
+        groups_data.GROUPS
     )
 
     logger.info(
-        "PHPSESSID cookie updated by user %s",
-        message.from_user.id,
+        "Groups loaded: %s",
+        total,
     )
 
+    # -----------------------------------------------------
+    # COOKIE
+    # -----------------------------------------------------
 
-# =========================
-# UPDATE
-# =========================
-
-@dp.message(Command("update"))
-async def run_update(message: Message):
-    logger.info(
-        "========== UPDATE STARTED =========="
-    )
-
-    status_message = await message.answer(
-        "⏳ Обновляю расписание всех групп...\n"
-        "Это может занять некоторое время."
-    )
-
-    cookie = await database.get_setting(
+    cookie = await db.get_setting(
         "phpsessid"
     )
 
     if not cookie:
+
         logger.error(
-            "UPDATE STOPPED: PHPSESSID is not set"
+            "PHPSESSID is not set"
         )
 
-        await status_message.edit_text(
-            "❌ Cookie не установлен.\n\n"
-            "Сначала используй:\n"
-            "<code>/setcookie PHPSESSID=...</code>",
-            parse_mode="HTML",
+        return (
+            "❌ PHPSESSID не установлен.\n\n"
+            "Используй:\n"
+            "/setcookie PHPSESSID=твой_cookie"
         )
-
-        return
 
     logger.info(
-        "Cookie found. Starting update."
+        "PHPSESSID found"
     )
+
+    # -----------------------------------------------------
+    # SAVE GROUP STRUCTURE
+    # -----------------------------------------------------
 
     try:
-        groups = await database.get_groups()
-    except Exception:
-        logger.exception(
-            "Failed to load groups from database"
+
+        await db.save_structure(
+            groups_data.GROUPS
         )
-
-        await status_message.edit_text(
-            "❌ Не удалось получить список групп из базы."
-        )
-
-        return
-
-    if not groups:
-        logger.error(
-            "No groups found in database"
-        )
-
-        await status_message.edit_text(
-            "❌ В базе данных нет групп."
-        )
-
-        return
-
-    logger.info(
-        "Groups loaded: %s",
-        len(groups),
-    )
-
-    success = 0
-    empty = 0
-    failed = 0
-
-    total = len(groups)
-
-    # =========================
-    # UPDATE EACH GROUP
-    # =========================
-
-    for index, group in enumerate(groups, start=1):
-
-        # Поддерживаем несколько форматов результата get_groups()
-        if isinstance(group, dict):
-            group_id = group.get("id")
-            group_name = group.get("name", str(group_id))
-        else:
-            try:
-                group_id = group[0]
-                group_name = group[1]
-            except Exception:
-                logger.error(
-                    "Invalid group object: %r",
-                    group,
-                )
-                failed += 1
-                continue
-
-        try:
-            group_id = int(group_id)
-        except Exception:
-            logger.error(
-                "Invalid group ID: %r",
-                group_id,
-            )
-            failed += 1
-            continue
 
         logger.info(
-            "[%s/%s] Starting group: %s | ID=%s",
+            "Group structure saved"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed to save group structure"
+        )
+
+        return (
+            "❌ Не удалось сохранить список групп."
+        )
+
+    # -----------------------------------------------------
+    # COUNTERS
+    # -----------------------------------------------------
+
+    updated = 0
+    empty = 0
+    errors = 0
+
+    # -----------------------------------------------------
+    # LOOP
+    # -----------------------------------------------------
+
+    for index, (
+        course,
+        group_name,
+        group_id,
+    ) in enumerate(
+        groups_data.GROUPS,
+        start=1,
+    ):
+
+        logger.info(
+            "[%s/%s] START group=%s id=%s",
             index,
             total,
             group_name,
@@ -605,7 +688,8 @@ async def run_update(message: Message):
         )
 
         try:
-            # Максимум 25 секунд на одну группу
+
+            # Максимум 25 секунд на одну группу.
             lessons = await asyncio.wait_for(
                 site_parser.fetch_schedule(
                     cookie=cookie,
@@ -614,253 +698,279 @@ async def run_update(message: Message):
                 timeout=25,
             )
 
-            logger.info(
-                "[%s/%s] Parser returned %s lessons for %s",
-                index,
-                total,
-                len(lessons) if lessons else 0,
-                group_name,
-            )
-
             if lessons:
-                await database.save_schedule_for_group(
+
+                logger.info(
+                    "[%s/%s] RECEIVED %s lessons for %s",
+                    index,
+                    total,
+                    len(lessons),
+                    group_name,
+                )
+
+                await db.save_schedule_for_group(
                     group_id,
                     lessons,
                 )
 
-                success += 1
+                updated += 1
 
                 logger.info(
-                    "[%s/%s] SUCCESS: %s",
+                    "[%s/%s] SUCCESS %s",
                     index,
                     total,
                     group_name,
                 )
 
             else:
+
                 empty += 1
 
                 logger.warning(
-                    "[%s/%s] EMPTY: %s",
+                    "[%s/%s] EMPTY response for %s",
                     index,
                     total,
                     group_name,
                 )
 
         except asyncio.TimeoutError:
-            failed += 1
+
+            errors += 1
 
             logger.error(
-                "[%s/%s] TIMEOUT after 25 seconds: %s | ID=%s",
+                "[%s/%s] TIMEOUT 25 sec for %s (%s)",
                 index,
                 total,
                 group_name,
                 group_id,
             )
 
-        except Exception as e:
-            failed += 1
+        except Exception as exc:
+
+            errors += 1
 
             logger.exception(
-                "[%s/%s] FAILED: %s | ID=%s | error=%s",
+                "[%s/%s] ERROR for %s (%s): %s",
                 index,
                 total,
                 group_name,
                 group_id,
-                e,
+                exc,
             )
 
-        # Обновляем сообщение примерно каждые 5 групп
-        # или на последней группе
-        if index == 1 or index % 5 == 0 or index == total:
+        # -------------------------------------------------
+        # UPDATE TELEGRAM STATUS
+        # -------------------------------------------------
+
+        if (
+            status_message
+            and (
+                index == 1
+                or index % 5 == 0
+                or index == total
+            )
+        ):
+
             try:
+
                 await status_message.edit_text(
                     "⏳ <b>Обновляю расписание...</b>\n\n"
                     f"Обработано: {index}/{total}\n"
-                    f"✅ Успешно: {success}\n"
+                    f"✅ Успешно: {updated}\n"
                     f"⚠️ Пусто: {empty}\n"
-                    f"❌ Ошибок: {failed}",
-                    parse_mode="HTML",
+                    f"❌ Ошибок: {errors}"
                 )
+
             except Exception:
+
                 logger.exception(
-                    "Failed to edit update status message"
+                    "Failed to update Telegram progress message"
                 )
 
-    # =========================
-    # FINISHED
-    # =========================
+        # Маленькая пауза между запросами
+        await asyncio.sleep(0.2)
+
+    # -----------------------------------------------------
+    # RESULT
+    # -----------------------------------------------------
 
     logger.info(
-        "========== UPDATE FINISHED =========="
+        "========================================"
     )
-
     logger.info(
-        "Result: success=%s empty=%s failed=%s total=%s",
-        success,
-        empty,
-        failed,
+        "UPDATE FINISHED"
+    )
+    logger.info(
+        "TOTAL=%s SUCCESS=%s EMPTY=%s ERRORS=%s",
         total,
+        updated,
+        empty,
+        errors,
+    )
+    logger.info(
+        "========================================"
     )
 
-    await status_message.edit_text(
+    result = (
         "✅ <b>Обновление завершено!</b>\n\n"
         f"Всего групп: {total}\n"
-        f"✅ Успешно: {success}\n"
+        f"✅ Успешно: {updated}\n"
         f"⚠️ Пустых: {empty}\n"
-        f"❌ Ошибок: {failed}",
-        parse_mode="HTML",
+        f"❌ Ошибок: {errors}"
     )
 
+    return result
 
-# =========================
-# STATS
-# =========================
 
-@dp.message(Command("stats"))
-async def stats(message: Message):
+# =========================================================
+# SCHEDULED UPDATE
+# =========================================================
+
+async def scheduled_update(
+    bot: Bot,
+) -> None:
+
+    logger.info(
+        "Автоматическое обновление запущено"
+    )
+
+    result = await run_update()
+
     try:
-        users_count = await database.count_users()
-    except Exception:
-        logger.exception(
-            "Failed to get users count"
-        )
-        users_count = 0
 
-    groups = await database.get_groups()
+        await bot.send_message(
+            ADMIN_ID,
+            f"[Автообновление]\n\n{result}",
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Не удалось отправить результат автообновления"
+        )
+
+
+# =========================================================
+# STATS
+# =========================================================
+
+@router.message(
+    Command("stats")
+)
+async def stats(
+    message: Message,
+) -> None:
+
+    if not is_admin(
+        message.from_user.id
+    ):
+        return
+
+    count = await db.count_users()
 
     await message.answer(
-        "📊 <b>Статистика</b>\n\n"
-        f"👤 Пользователей: {users_count}\n"
-        f"👥 Групп: {len(groups)}",
-        parse_mode="HTML",
+        f"Всего пользователей бота: "
+        f"<b>{count}</b>"
     )
 
 
-# =========================
-# AUTOMATIC UPDATE
-# =========================
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 
-async def scheduled_update():
-    logger.info(
-        "========== SCHEDULED UPDATE STARTED =========="
+async def handle_health(
+    request: web.Request,
+) -> web.Response:
+
+    return web.Response(
+        text="ok"
     )
 
-    cookie = await database.get_setting(
-        "phpsessid"
+
+async def run_health_server() -> None:
+
+    app = web.Application()
+
+    app.router.add_get(
+        "/",
+        handle_health,
     )
 
-    if not cookie:
-        logger.warning(
-            "Scheduled update skipped: no PHPSESSID"
+    runner = web.AppRunner(
+        app
+    )
+
+    await runner.setup()
+
+    port = int(
+        os.getenv(
+            "PORT",
+            "10000",
         )
-        return
-
-    groups = await database.get_groups()
-
-    if not groups:
-        logger.warning(
-            "Scheduled update skipped: no groups"
-        )
-        return
-
-    success = 0
-    empty = 0
-    failed = 0
-
-    total = len(groups)
-
-    for index, group in enumerate(groups, start=1):
-
-        if isinstance(group, dict):
-            group_id = group.get("id")
-            group_name = group.get("name", str(group_id))
-        else:
-            try:
-                group_id = group[0]
-                group_name = group[1]
-            except Exception:
-                failed += 1
-                continue
-
-        try:
-            group_id = int(group_id)
-
-            logger.info(
-                "[AUTO %s/%s] Updating %s | ID=%s",
-                index,
-                total,
-                group_name,
-                group_id,
-            )
-
-            lessons = await asyncio.wait_for(
-                site_parser.fetch_schedule(
-                    cookie=cookie,
-                    group_id=group_id,
-                ),
-                timeout=25,
-            )
-
-            if lessons:
-                await database.save_schedule_for_group(
-                    group_id,
-                    lessons,
-                )
-                success += 1
-            else:
-                empty += 1
-
-        except asyncio.TimeoutError:
-            failed += 1
-            logger.error(
-                "[AUTO %s/%s] Timeout: %s",
-                index,
-                total,
-                group_name,
-            )
-
-        except Exception:
-            failed += 1
-            logger.exception(
-                "[AUTO %s/%s] Failed: %s",
-                index,
-                total,
-                group_name,
-            )
-
-    logger.info(
-        "========== SCHEDULED UPDATE FINISHED =========="
     )
 
+    site = web.TCPSite(
+        runner,
+        "0.0.0.0",
+        port,
+    )
+
+    await site.start()
+
     logger.info(
-        "AUTO RESULT: success=%s empty=%s failed=%s total=%s",
-        success,
-        empty,
-        failed,
-        total,
+        "Health-check server started on port %s",
+        port,
     )
 
 
-# =========================
+# =========================================================
 # MAIN
-# =========================
+# =========================================================
 
-async def main():
+async def main() -> None:
+
     logger.info(
-        "Starting Gubkin schedule bot..."
+        "========================================"
+    )
+    logger.info(
+        "Starting Gubkin Bot"
+    )
+    logger.info(
+        "========================================"
     )
 
-    # Database
-    await database.init_db()
+    # -----------------------------------------------------
+    # DATABASE
+    # -----------------------------------------------------
+
+    await db.init_db()
 
     logger.info(
         "Database initialized"
     )
 
-    # =========================
+    # -----------------------------------------------------
+    # BOT
+    # -----------------------------------------------------
+
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(
+            parse_mode="HTML"
+        ),
+    )
+
+    dp = Dispatcher(
+        storage=MemoryStorage()
+    )
+
+    dp.include_router(
+        router
+    )
+
+    # -----------------------------------------------------
     # SCHEDULER
-    # =========================
+    # -----------------------------------------------------
 
     scheduler = AsyncIOScheduler(
         timezone="Asia/Tashkent"
@@ -868,11 +978,10 @@ async def main():
 
     scheduler.add_job(
         scheduled_update,
-        CronTrigger(
-            hour=3,
-            minute=0,
-            timezone="Asia/Tashkent",
-        ),
+        "cron",
+        hour=3,
+        minute=0,
+        args=[bot],
         id="daily_schedule_update",
         replace_existing=True,
     )
@@ -880,27 +989,35 @@ async def main():
     scheduler.start()
 
     logger.info(
-        "Scheduler started. Daily update: 03:00 Asia/Tashkent"
+        "Scheduler started: daily at 03:00 Asia/Tashkent"
     )
 
-    # =========================
-    # WEB SERVER
-    # =========================
+    # -----------------------------------------------------
+    # RENDER HEALTH SERVER
+    # -----------------------------------------------------
 
-    await start_web_server()
+    await run_health_server()
 
-    # =========================
-    # BOT
-    # =========================
+    # -----------------------------------------------------
+    # POLLING
+    # -----------------------------------------------------
 
     logger.info(
-        "Bot polling started"
+        "Bot is starting polling..."
+    )
+
+    await bot.delete_webhook(
+        drop_pending_updates=True
     )
 
     try:
-        await dp.start_polling(bot)
+
+        await dp.start_polling(
+            bot
+        )
 
     finally:
+
         scheduler.shutdown()
 
         await bot.session.close()
@@ -910,14 +1027,12 @@ async def main():
         )
 
 
-# =========================
+# =========================================================
 # ENTRY POINT
-# =========================
+# =========================================================
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info(
-            "Bot stopped manually"
-        )
+
+    asyncio.run(
+        main()
+    )
