@@ -1,9 +1,12 @@
 import asyncio
 import logging
 import os
+import socket
+import ssl
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import httpx
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -53,12 +56,7 @@ WEEKDAY_NAMES_RU = [
 
 TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
 
-# Сколько групп одновременно отправляем в API.
 UPDATE_CONCURRENCY = 6
-
-# parser.py имеет свой HTTP timeout 20 секунд.
-# Здесь ставим немного больше, чтобы внешний timeout
-# не срабатывал раньше внутреннего.
 PER_GROUP_TIMEOUT = 25
 
 
@@ -488,6 +486,292 @@ async def site_link(
 
 
 # =========================================================
+# /TESTAPI
+# =========================================================
+
+@router.message(
+    Command("testapi")
+)
+async def test_api(
+    message: Message,
+) -> None:
+
+    if not is_admin(
+        message.from_user.id
+    ):
+        return
+
+    status = await message.answer(
+        "🔎 <b>Проверяю соединение Render → Gubkin...</b>"
+    )
+
+    host = "lk.gubkin.ru"
+    port = 443
+
+    lines = [
+        "<b>🔎 Диагностика Gubkin API</b>",
+        "",
+        f"Хост: <code>{host}</code>",
+        f"Порт: <code>{port}</code>",
+    ]
+
+    # -----------------------------------------------------
+    # DNS
+    # -----------------------------------------------------
+
+    try:
+
+        addresses = await asyncio.get_running_loop().run_in_executor(
+            None,
+            lambda: socket.getaddrinfo(
+                host,
+                port,
+                type=socket.SOCK_STREAM,
+            ),
+        )
+
+        unique_addresses = []
+
+        for item in addresses:
+
+            family = item[0]
+            sockaddr = item[4]
+
+            ip = sockaddr[0]
+
+            family_name = (
+                "IPv4"
+                if family == socket.AF_INET
+                else "IPv6"
+                if family == socket.AF_INET6
+                else str(family)
+            )
+
+            entry = (
+                family_name,
+                ip,
+            )
+
+            if entry not in unique_addresses:
+                unique_addresses.append(entry)
+
+        if unique_addresses:
+
+            lines.append("")
+            lines.append("<b>DNS:</b> ✅")
+
+            for family_name, ip in unique_addresses:
+
+                lines.append(
+                    f"• {family_name}: <code>{ip}</code>"
+                )
+
+        else:
+
+            lines.append("")
+            lines.append(
+                "<b>DNS:</b> ⚠️ адреса не найдены"
+            )
+
+    except Exception as exc:
+
+        logger.exception(
+            "DNS TEST FAILED"
+        )
+
+        lines.append("")
+        lines.append(
+            "<b>DNS:</b> ❌"
+        )
+        lines.append(
+            f"<code>{type(exc).__name__}: {exc!r}</code>"
+        )
+
+        await status.edit_text(
+            "\n".join(lines)
+        )
+
+        return
+
+    # -----------------------------------------------------
+    # TCP TEST
+    # -----------------------------------------------------
+
+    lines.append("")
+    lines.append("<b>TCP CONNECT:</b>")
+
+    tested = set()
+
+    for family_name, ip in unique_addresses:
+
+        key = (
+            family_name,
+            ip,
+        )
+
+        if key in tested:
+            continue
+
+        tested.add(key)
+
+        family = (
+            socket.AF_INET
+            if family_name == "IPv4"
+            else socket.AF_INET6
+        )
+
+        start_time = asyncio.get_running_loop().time()
+
+        try:
+
+            if family == socket.AF_INET:
+
+                connection = await asyncio.wait_for(
+                    asyncio.open_connection(
+                        host=ip,
+                        port=port,
+                        family=socket.AF_INET,
+                    ),
+                    timeout=8,
+                )
+
+            else:
+
+                connection = await asyncio.wait_for(
+                    asyncio.open_connection(
+                        host=ip,
+                        port=port,
+                        family=socket.AF_INET6,
+                    ),
+                    timeout=8,
+                )
+
+            reader, writer = connection
+
+            elapsed = (
+                asyncio.get_running_loop().time()
+                - start_time
+            )
+
+            writer.close()
+
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+            lines.append(
+                f"• {family_name} <code>{ip}</code>: "
+                f"✅ подключение "
+                f"({elapsed:.2f}s)"
+            )
+
+        except asyncio.TimeoutError:
+
+            elapsed = (
+                asyncio.get_running_loop().time()
+                - start_time
+            )
+
+            lines.append(
+                f"• {family_name} <code>{ip}</code>: "
+                f"❌ timeout "
+                f"({elapsed:.2f}s)"
+            )
+
+        except Exception as exc:
+
+            elapsed = (
+                asyncio.get_running_loop().time()
+                - start_time
+            )
+
+            logger.exception(
+                "TCP TEST FAILED %s %s",
+                family_name,
+                ip,
+            )
+
+            lines.append(
+                f"• {family_name} <code>{ip}</code>: "
+                f"❌ {type(exc).__name__}: "
+                f"{exc!r} "
+                f"({elapsed:.2f}s)"
+            )
+
+    # -----------------------------------------------------
+    # HTTPS TEST
+    # -----------------------------------------------------
+
+    lines.append("")
+    lines.append("<b>HTTPS:</b>")
+
+    try:
+
+        start_time = asyncio.get_running_loop().time()
+
+        async with httpx.AsyncClient(
+            timeout=10,
+            follow_redirects=True,
+        ) as client:
+
+            response = await client.get(
+                "https://lk.gubkin.ru/"
+            )
+
+        elapsed = (
+            asyncio.get_running_loop().time()
+            - start_time
+        )
+
+        lines.append(
+            f"• HTTPS: ✅ "
+            f"HTTP {response.status_code} "
+            f"({elapsed:.2f}s)"
+        )
+
+        lines.append(
+            f"• Финальный URL: "
+            f"<code>{response.url}</code>"
+        )
+
+    except Exception as exc:
+
+        elapsed = (
+            asyncio.get_running_loop().time()
+            - start_time
+        )
+
+        logger.exception(
+            "HTTPS TEST FAILED"
+        )
+
+        lines.append(
+            f"• HTTPS: ❌ "
+            f"{type(exc).__name__}: "
+            f"{exc!r} "
+            f"({elapsed:.2f}s)"
+        )
+
+    lines.append("")
+    lines.append(
+        "Теперь отправь мне <b>весь результат</b> этого сообщения."
+    )
+
+    try:
+
+        await status.edit_text(
+            "\n".join(lines)
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed to send API test result"
+        )
+
+
+# =========================================================
 # /UPDATE
 # =========================================================
 
@@ -513,11 +797,13 @@ async def force_update(
     )
 
     try:
+
         await status.edit_text(
             result
         )
 
     except Exception:
+
         logger.exception(
             "Не удалось изменить итоговое сообщение"
         )
@@ -554,12 +840,6 @@ async def _update_one_group(
                 timeout=PER_GROUP_TIMEOUT,
             )
 
-            # ВАЖНО:
-            # Сохраняем даже пустой список.
-            #
-            # Это удалит старое расписание группы,
-            # если API сейчас действительно вернул
-            # пустое расписание.
             await db.save_schedule_for_group(
                 group_id,
                 lessons,
@@ -663,13 +943,6 @@ async def _update_one_group(
 # =========================================================
 
 def find_duplicate_group_ids() -> list[tuple[int, list[str]]]:
-    """
-    Находит group_id, которые используются
-    несколькими группами.
-
-    Это важно, потому что database.py использует
-    (course, group_id) как PRIMARY KEY.
-    """
 
     by_id: dict[int, list[str]] = {}
 
@@ -687,6 +960,7 @@ def find_duplicate_group_ids() -> list[tuple[int, list[str]]]:
     for group_id, names in by_id.items():
 
         if len(names) > 1:
+
             duplicates.append(
                 (
                     group_id,
@@ -734,10 +1008,6 @@ async def run_update(
         total,
     )
 
-    # -----------------------------------------------------
-    # CHECK DUPLICATES
-    # -----------------------------------------------------
-
     duplicates = find_duplicate_group_ids()
 
     if duplicates:
@@ -753,10 +1023,6 @@ async def run_update(
                 group_id,
                 ", ".join(names),
             )
-
-    # -----------------------------------------------------
-    # SAVE GROUP STRUCTURE
-    # -----------------------------------------------------
 
     try:
 
@@ -779,10 +1045,6 @@ async def run_update(
             "список групп."
         )
 
-    # -----------------------------------------------------
-    # COUNTERS
-    # -----------------------------------------------------
-
     counters = {
         "updated": 0,
         "empty": 0,
@@ -795,10 +1057,6 @@ async def run_update(
     semaphore = asyncio.Semaphore(
         UPDATE_CONCURRENCY
     )
-
-    # -----------------------------------------------------
-    # CREATE TASKS
-    # -----------------------------------------------------
 
     tasks = [
         _update_one_group(
@@ -814,17 +1072,9 @@ async def run_update(
         in groups_data.GROUPS
     ]
 
-    # -----------------------------------------------------
-    # RUN ALL TASKS
-    # -----------------------------------------------------
-
     await asyncio.gather(
         *tasks
     )
-
-    # -----------------------------------------------------
-    # LOG RESULT
-    # -----------------------------------------------------
 
     logger.info(
         "========================================"
@@ -848,10 +1098,6 @@ async def run_update(
     logger.info(
         "========================================"
     )
-
-    # -----------------------------------------------------
-    # RESULT MESSAGE
-    # -----------------------------------------------------
 
     result = (
         "✅ <b>Обновление завершено!</b>\n\n"
