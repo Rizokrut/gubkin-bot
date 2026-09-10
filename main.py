@@ -156,12 +156,16 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
         return header + "\nПар нет — можно выдохнуть 🎉"
 
     lessons = sorted(lessons, key=_lesson_sort_key)
-    active = [x for x in lessons if not _is_cancelled_flag(x.get("is_cancelled"))]
-    cancelled = [x for x in lessons if _is_cancelled_flag(x.get("is_cancelled"))]
-    header += f"пар: {len(active)}"
-    if cancelled:
-        header += f"  ·  отмен: {len(cancelled)}"
-    header += "\n"
+    n = sum(
+        1 for x in lessons if not _is_cancelled_flag(x.get("is_cancelled"))
+    )
+    if n % 10 == 1 and n % 100 != 11:
+        pair_word = "пара"
+    elif n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        pair_word = "пары"
+    else:
+        pair_word = "пар"
+    header += f"\n<b>{n} {pair_word}</b>\n"
 
     blocks = []
     for i, lesson in enumerate(lessons, start=1):
