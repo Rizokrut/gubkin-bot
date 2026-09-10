@@ -26,11 +26,10 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
     builder.button(text="📅 Сегодня")
     builder.button(text="🌅 Завтра")
     builder.button(text="🗓 Неделя")
-    builder.button(text="ℹ️ Помощь")
     builder.button(text="🔗 Сайт")
-    builder.button(text="👤 Группа")
+    builder.button(text="💬 Админ")
     builder.button(text="⚙️ Настройки")
-    builder.adjust(2, 2, 2, 1)
+    builder.adjust(2, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
 

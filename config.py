@@ -7,11 +7,13 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-# Реальный сайт расписания.
+# Страница расписания филиала.
 BASE_URL = os.getenv(
     "BASE_URL",
-    "https://lk.gubkin.ru",
+    "https://gubkin.uz/ru/item/raspisanie-zaniatii",
 )
+SCHEDULE_URL = "https://gubkin.uz/ru/item/raspisanie-zaniatii"
+ADMIN_URL = "https://t.me/rllzo"
 
 DB_PATH = os.getenv(
     "DB_PATH",

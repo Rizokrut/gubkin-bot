@@ -11,7 +11,12 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database as db
@@ -19,7 +24,7 @@ import keyboards as kb
 import groups_data
 import parser as site_parser
 from parser import ScheduleAuthError, ScheduleFormatError
-from config import BOT_TOKEN, ADMIN_ID, BASE_URL
+from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -111,8 +116,37 @@ def _short_room(room: str) -> str:
     return text.strip(" -—") or "—"
 
 
+def _pretty_room(room: str) -> str:
+    text = _short_room(room)
+    pairs = (
+        ("Ауд. каф.", "Аудитория кафедры"),
+        ("ауд. каф.", "аудитория кафедры"),
+        ("Ауд.", "Аудитория "),
+        ("ауд.", "аудитория "),
+        ("Каб.", "Кабинет "),
+        ("каб.", "кабинет "),
+        ("каф.", "кафедры "),
+    )
+    for src, dst in pairs:
+        text = text.replace(src, dst)
+    text = " ".join(text.split())
+    low = text.lower()
+    if any(
+        word in low
+        for word in ("аудитор", "кабинет", "спортзал", "лингфон", "лаборатор")
+    ):
+        return text
+    return f"кабинет {text}"
+
+
 def _is_cancelled_flag(value) -> bool:
     return value in (1, "1", True, "true", "True")
+
+
+def _lesson_sort_key(lesson: dict) -> tuple:
+    minutes = db._time_slot_to_minutes(lesson.get("time_slot") or "")
+    cancelled = 1 if _is_cancelled_flag(lesson.get("is_cancelled")) else 0
+    return (minutes, cancelled)
 
 
 def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
@@ -121,6 +155,7 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
     if not lessons:
         return header + "\nПар нет — можно выдохнуть 🎉"
 
+    lessons = sorted(lessons, key=_lesson_sort_key)
     active = [x for x in lessons if not _is_cancelled_flag(x.get("is_cancelled"))]
     cancelled = [x for x in lessons if _is_cancelled_flag(x.get("is_cancelled"))]
     header += f"пар: {len(active)}"
@@ -134,7 +169,7 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
         ltype = (lesson.get("lesson_type") or "").strip()
         icon = TYPE_ICON.get(ltype.lower(), "📘")
         time_slot = lesson.get("time_slot") or "—"
-        room = _short_room(lesson.get("room") or "")
+        room = _pretty_room(lesson.get("room") or "")
         teacher = (lesson.get("teacher") or "").strip()
         type_line = f"{icon} {ltype}" if ltype else icon
 
@@ -150,7 +185,7 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
         blocks.append(
             f"<b>{i}. {time_slot}</b>\n"
             f"{subject}\n"
-            f"{type_line}  ·  каб. {room}{extra}"
+            f"{type_line}  ·  {room}{extra}"
         )
 
     return header + "\n\n" + "\n\n".join(blocks)
@@ -285,9 +320,19 @@ async def site_link(message: Message) -> None:
     user = await db.get_user(message.from_user.id)
     group_name = user["group_name"] if user else "не выбрана"
     await message.answer(
-        f"Официальное расписание:\n{BASE_URL}\n\n"
+        f"Официальное расписание:\n{SCHEDULE_URL}\n\n"
         f"Твоя группа в боте: <b>{group_name}</b>"
     )
+
+
+@router.message(F.text.in_({"💬 Админ", "Связь с админом"}))
+async def contact_admin(message: Message) -> None:
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Написать админу", url=ADMIN_URL)]
+        ]
+    )
+    await message.answer("Связь с админом:", reply_markup=markup)
 
 
 @router.message(F.text.in_({"ℹ️ Помощь", "/help"}))
@@ -297,7 +342,7 @@ async def help_text(message: Message) -> None:
         "📅 Сегодня — пары на этот день\n"
         "🌅 Завтра — пары на следующий день\n"
         "🗓 Неделя — пн–вс текущей недели\n"
-        "👤 Группа — сменить группу\n\n"
+        "Группу менять в ⚙️ Настройки\n\n"
         "❌ Зачёркнутая пара = отменена на сайте.\n"
         "За 5 минут до пары бот пришлёт напоминание "
         "(время Ташкента).\n"
@@ -624,7 +669,7 @@ async def send_pair_reminders(bot: Bot) -> None:
                 continue
             subject = (lesson.get("subject") or "Пара").strip()
             slot = lesson.get("time_slot") or ""
-            room = _short_room_admin(lesson.get("room") or "")
+            room = _pretty_room(lesson.get("room") or "")
             teacher = (lesson.get("teacher") or "").strip()
             ltype = (lesson.get("lesson_type") or "").strip()
 
@@ -647,7 +692,7 @@ async def send_pair_reminders(bot: Bot) -> None:
                 )
                 if ltype:
                     text += f" ({ltype})"
-                text += f"\nкаб. {room}"
+                text += f"\n{room}"
                 if teacher:
                     text += f"\n{teacher}"
                 try:

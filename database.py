@@ -260,7 +260,12 @@ async def get_schedule_for_day(group_id: int, weekday: int) -> list[dict]:
         rows = await cursor.fetchall()
 
     result = [dict(r) for r in rows]
-    result.sort(key=lambda r: _time_slot_to_minutes(r.get("time_slot", "")))
+    result.sort(
+        key=lambda r: (
+            _time_slot_to_minutes(r.get("time_slot", "")),
+            1 if r.get("is_cancelled") in (1, "1", True) else 0,
+        )
+    )
     return result
 
 
@@ -278,7 +283,12 @@ async def get_schedule_for_week(group_id: int) -> dict[int, list[dict]]:
         week[r["weekday"]].append(dict(r))
 
     for wd in range(7):
-        week[wd].sort(key=lambda r: _time_slot_to_minutes(r.get("time_slot", "")))
+        week[wd].sort(
+            key=lambda r: (
+                _time_slot_to_minutes(r.get("time_slot", "")),
+                1 if r.get("is_cancelled") in (1, "1", True) else 0,
+            )
+        )
 
     return week
 
