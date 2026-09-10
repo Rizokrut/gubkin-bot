@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import date, datetime
 
 import httpx
 
@@ -237,8 +237,10 @@ def _iter_raw_lessons(info: dict):
             dated.append((parsed, day_lessons))
 
     if dated:
-        dated.sort(key=lambda x: x[0])
-        chosen = dated[-1][1]
+        today = date.today()
+        # Берём снимок ближайший к сегодня, иначе бот показывает чужую неделю.
+        dated.sort(key=lambda x: (abs((x[0] - today).days), -x[0].toordinal()))
+        chosen = dated[0][1]
     elif undated:
         chosen = undated[-1]
     else:
