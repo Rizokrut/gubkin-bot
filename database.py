@@ -59,6 +59,23 @@ async def init_db() -> None:
         await db.commit()
 
 
+# ---------- Сортировка по времени ----------
+
+def _time_slot_to_minutes(time_slot: str) -> int:
+    """
+    '8:30-10:00' → 510 (8*60+30).
+    Если что-то не так — вернём 99999, чтобы пара уехала в конец.
+    """
+    if not time_slot:
+        return 99999
+    try:
+        start = time_slot.split("-")[0].strip()
+        h, m = start.split(":")
+        return int(h) * 60 + int(m)
+    except Exception:
+        return 99999
+
+
 # ---------- Пользователи ----------
 
 async def get_user(telegram_id: int):
@@ -153,24 +170,32 @@ async def get_schedule_for_day(group_id: int, weekday: int) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            "SELECT * FROM schedule WHERE group_id = ? AND weekday = ? ORDER BY time_slot",
+            "SELECT * FROM schedule WHERE group_id = ? AND weekday = ?",
             (group_id, weekday),
         )
         rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+
+    result = [dict(r) for r in rows]
+    result.sort(key=lambda r: _time_slot_to_minutes(r.get("time_slot", "")))
+    return result
 
 
 async def get_schedule_for_week(group_id: int) -> dict[int, list[dict]]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            "SELECT * FROM schedule WHERE group_id = ? ORDER BY weekday, time_slot",
+            "SELECT * FROM schedule WHERE group_id = ?",
             (group_id,),
         )
         rows = await cursor.fetchall()
+
     week: dict[int, list[dict]] = {i: [] for i in range(7)}
     for r in rows:
         week[r["weekday"]].append(dict(r))
+
+    for wd in range(7):
+        week[wd].sort(key=lambda r: _time_slot_to_minutes(r.get("time_slot", "")))
+
     return week
 
 
