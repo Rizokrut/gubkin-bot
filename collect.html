@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сбор расписания Губкина</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f7; color: #111; }
+  h1 { font-size: 20px; }
+  button { font-size: 18px; padding: 16px 20px; border-radius: 12px; border: none; background: #007aff; color: white; width: 100%; margin: 10px 0; }
+  button:disabled { background: #aaa; }
+  #log { background: white; padding: 12px; border-radius: 12px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow: auto; margin-top: 10px; }
+  #download { background: #34c759; display: none; text-decoration: none; text-align: center; color: white; font-size: 18px; padding: 16px; border-radius: 12px; margin-top: 10px; }
+  #download.show { display: block; }
+  .small { font-size: 13px; color: #666; }
+</style>
+</head>
+<body>
+<h1>📅 Сбор расписания Губкина</h1>
+<p class="small">Нажми кнопку, подожди 1–3 минуты, потом нажми «Скачать файл» и загрузи его в репозиторий.</p>
+
+<button id="start">▶️ Собрать расписание</button>
+<a id="download" href="#" download="schedule_cache.json">⬇️ Скачать schedule_cache.json</a>
+<div id="log"></div>
+
+<script>
+// ==== НАСТРОЙКИ ====
+const API_URL = "https://lk.gubkin.ru/schedule/api/api.php";
+const DAYS_AHEAD = 14;
+
+// Прокси. Если первый не работает — попробуем следующий.
+const PROXIES = [
+  (url) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+  (url) => "https://corsproxy.io/?" + encodeURIComponent(url),
+  (url) => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url),
+];
+
+// Группы: [курс, имя, group_id]. При необходимости поправь под свой groups_data.py.
+const GROUPS = [
+  // I курс
+  ["I курс","УРБ-25-01",10114],["I курс","УРБ-25-02",10115],
+  ["I курс","УРБ-25-03",10116],["I курс","УРБ-25-04",10117],
+  ["I курс","УРБ-25-05",10118],["I курс","УРГ-25-06",10118],
+  // ... сюда надо вставить ВСЕ 44 группы из groups_data.py
+];
+// ==== КОНЕЦ НАСТРОЕК ====
+
+const logEl = document.getElementById("log");
+const startBtn = document.getElementById("start");
+const dlBtn = document.getElementById("download");
+
+function log(s) {
+  logEl.textContent += s + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function pad2(n) { return n < 10 ? "0"+n : ""+n; }
+function toDateStr(d) { return pad2(d.getDate()) + "-" + pad2(d.getMonth()+1) + "-" + d.getFullYear(); }
+
+function buildDates() {
+  const out = [];
+  const today = new Date();
+  for (let i = 0; i < DAYS_AHEAD; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    out.push(toDateStr(d));
+  }
+  return out;
+}
+
+async function fetchViaProxy(targetUrl) {
+  let lastErr = null;
+  for (const wrap of PROXIES) {
+    const proxied = wrap(targetUrl);
+    try {
+      const r = await fetch(proxied);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const text = await r.text();
+      return text;
+    } catch (e) {
+      lastErr = e;
+      log("  прокси не сработал: " + e);
+    }
+  }
+  throw lastErr || new Error("Все прокси не сработали");
+}
+
+function formatTimeSlot(chunks, idxs) {
+  if (!idxs || !chunks || !idxs.length) return "";
+  try {
+    const first = chunks[idxs[0]];
+    const last = chunks[idxs[idxs.length - 1]];
+    const start = first.split("-")[0].trim();
+    const end = last.split("-").pop().trim();
+    return start + "-" + end;
+  } catch (e) { return ""; }
+}
+
+function formatTeachers(teachers) {
+  const out = [];
+  for (const t of (teachers || [])) {
+    const last = t.lastName || "";
+    const first = t.firstName || "";
+    const patr = t.patronymic || "";
+    let ini = "";
+    if (first) ini += first[0] + ".";
+    if (patr) ini += patr[0] + ".";
+    const name = (last + " " + ini).trim();
+    if (name) out.push(name);
+  }
+  return out.join(", ");
+}
+
+function parseLessons(data) {
+  const rows = (data && data.rows) || {};
+  const orgs = rows.organizations || [];
+  const lessons = [];
+  for (const org of orgs) {
+    const timeChunks = org.lessonsTimeChunks || [];
+    const orgLessons = org.lessons || [];
+    for (const lesson of orgLessons) {
+      const rooms = lesson.rooms || [];
+      const room = rooms.length ? (rooms[0].number || "") : "";
+      const course = lesson.course || {};
+      lessons.push({
+        weekday: lesson.weekDayNumber,
+        time_slot: formatTimeSlot(timeChunks, lesson.timeChunks || []),
+        subject: course.name || "",
+        room: room,
+        teacher: formatTeachers(lesson.teachers || []),
+        lesson_type: lesson.type || "",
+        week_parity: "all",
+      });
+    }
+  }
+  return lessons;
+}
+
+async function collect() {
+  startBtn.disabled = true;
+  logEl.textContent = "";
+  log("Групп: " + GROUPS.length);
+  const dates = buildDates();
+  log("Дат: " + dates.length + " (" + dates[0] + " ... " + dates[dates.length-1] + ")");
+
+  const cache = {
+    generated_at: new Date().toISOString().slice(0, 10),
+    days_ahead: DAYS_AHEAD,
+    groups: {},
+  };
+
+  for (let gi = 0; gi < GROUPS.length; gi++) {
+    const [course, name, id] = GROUPS[gi];
+    log("[" + (gi+1) + "/" + GROUPS.length + "] " + name + " (" + id + ")");
+    const daysData = {};
+    let ok = 0;
+
+    for (const dateStr of dates) {
+      const url = API_URL + "?act=schedule&date=" + dateStr + "&groupId=" + id;
+      try {
+        const text = await fetchViaProxy(url);
+        let data = null;
+        try { data = JSON.parse(text); } catch (e) { data = null; }
+        if (data && data.state) {
+          daysData[dateStr] = parseLessons(data);
+          ok++;
+        }
+      } catch (e) {
+        log("  " + dateStr + " ошибка: " + e.message);
+      }
+    }
+
+    const key = course + "|" + name + "|" + id;
+    cache.groups[key] = {
+      course: course, name: name, group_id: id, days: daysData,
+    };
+    log("  готово: " + ok + "/" + dates.length);
+  }
+
+  const blob = new Blob([JSON.stringify(cache, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  dlBtn.href = url;
+  dlBtn.classList.add("show");
+  log("\n✅ Готово! Нажми зелёную кнопку выше, чтобы скачать файл.");
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener("click", collect);
+</script>
+</body>
+</html>
