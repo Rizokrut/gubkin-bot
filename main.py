@@ -38,6 +38,9 @@ WEEKDAY_NAMES_RU = [
 UPDATE_CONCURRENCY = 6
 PER_GROUP_TIMEOUT = 25
 
+# Лимит Telegram — 4096 символов. Оставим запас.
+MAX_MESSAGE_LEN = 3500
+
 # GitHub
 GITHUB_USER = "Rizokrut"
 GITHUB_REPO = "gubkin-bot"
@@ -53,6 +56,47 @@ class Registration(StatesGroup):
 
 def is_admin(telegram_id: int) -> bool:
     return telegram_id == ADMIN_ID
+
+
+# =========================================================
+# РАЗБИВКА ДЛИННЫХ СООБЩЕНИЙ
+# =========================================================
+def split_long_message(text: str, max_len: int = MAX_MESSAGE_LEN) -> list[str]:
+    """
+    Режет длинный текст на части так, чтобы каждая влезала в лимит Telegram.
+    Режет по переводам строк (по парам), а не по буквам.
+    """
+    if len(text) <= max_len:
+        return [text]
+
+    chunks: list[str] = []
+    current = ""
+    for line in text.split("\n"):
+        candidate = (current + "\n" + line) if current else line
+        if len(candidate) > max_len:
+            if current:
+                chunks.append(current)
+            # Если одна строка сама по себе больше лимита — режем её грубо
+            if len(line) > max_len:
+                for i in range(0, len(line), max_len):
+                    chunks.append(line[i:i + max_len])
+                current = ""
+            else:
+                current = line
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+async def send_long(message: Message, text: str) -> None:
+    for chunk in split_long_message(text):
+        try:
+            await message.answer(chunk)
+        except Exception:
+            logger.exception("Не удалось отправить часть сообщения")
+        await asyncio.sleep(0.05)
 
 
 # =========================================================
@@ -74,7 +118,7 @@ async def _gh_download_json(filename: str) -> dict | None:
         f"{GITHUB_BRANCH}/{filename}"
     )
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             r = await client.get(url)
             if r.status_code != 200:
                 logger.warning("Файл %s не скачался: HTTP %s", filename, r.status_code)
@@ -92,8 +136,7 @@ async def _gh_upload_json(filename: str, data: dict) -> bool:
 
     url = f"{GITHUB_API}/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{filename}"
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        # Получаем sha существующего файла (если он есть)
+    async with httpx.AsyncClient(timeout=60) as client:
         sha = None
         try:
             r = await client.get(url, headers=_gh_headers())
@@ -123,7 +166,7 @@ async def _gh_upload_json(filename: str, data: dict) -> bool:
 
 
 # =========================================================
-# /MERGE — собирает schedule_cache.json из part2..part8
+# /MERGE
 # =========================================================
 @router.message(Command("merge"))
 async def cmd_merge(message: Message) -> None:
@@ -135,12 +178,10 @@ async def cmd_merge(message: Message) -> None:
     if not GITHUB_TOKEN:
         await status.edit_text(
             "❌ <b>Нужен GITHUB_TOKEN.</b>\n\n"
-            "Добавь переменную окружения GITHUB_TOKEN на Render "
-            "(это Personal Access Token с правами на репозиторий)."
+            "Добавь переменную окружения GITHUB_TOKEN на Render."
         )
         return
 
-    # 1. Старый schedule_cache.json (это Часть 1)
     base = await _gh_download_json("schedule_cache.json")
     if base is None:
         await status.edit_text("❌ Не смог прочитать schedule_cache.json из GitHub.")
@@ -152,13 +193,11 @@ async def cmd_merge(message: Message) -> None:
     merged_groups = dict(base.get("groups", {}))
     logger.info("После Части 1: %s групп", len(merged_groups))
 
-    # 2. Скачиваем части 2..8
     parts = [2, 3, 4, 5, 6, 7, 8]
     for p in parts:
         fname = f"part{p}.json"
         await status.edit_text(
-            f"🔧 <b>Склеиваю части...</b>\n\n"
-            f"Читаю {fname}..."
+            f"🔧 <b>Склеиваю части...</b>\n\nЧитаю {fname}..."
         )
         part = await _gh_download_json(fname)
         if part is None or "groups" not in part:
@@ -172,7 +211,6 @@ async def cmd_merge(message: Message) -> None:
                 added += 1
         logger.info("Из %s добавлено групп с данными: %s", fname, added)
 
-    # 3. Формируем итог
     result = {
         "generated_at": datetime.now().date().isoformat(),
         "days_ahead": base.get("days_ahead", 14),
@@ -182,7 +220,6 @@ async def cmd_merge(message: Message) -> None:
     total = len(result["groups"])
     non_empty = sum(1 for g in result["groups"].values() if g.get("days"))
 
-    # 4. Заливаем обратно
     await status.edit_text(
         f"🔧 <b>Склеиваю части...</b>\n\n"
         f"Собрано групп: {total}\n"
@@ -206,7 +243,7 @@ async def cmd_merge(message: Message) -> None:
 
 
 # =========================================================
-# FORMAT SCHEDULE
+# ФОРМАТ ДНЯ
 # =========================================================
 def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
     header = f"<b>{WEEKDAY_NAMES_RU[weekday]}</b> — группа {group_name}\n\n"
@@ -225,7 +262,8 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
 
 async def send_day_schedule(message: Message, group_name: str, group_id: int, weekday: int) -> None:
     lessons = await db.get_schedule_for_day(group_id, weekday)
-    await message.answer(format_day(group_name, weekday, lessons))
+    text = format_day(group_name, weekday, lessons)
+    await send_long(message, text)
 
 
 # =========================================================
@@ -339,8 +377,9 @@ async def week_schedule(message: Message) -> None:
     group_name = user["group_name"]
     week = await db.get_schedule_for_week(user["group_id"])
     for weekday in range(7):
-        await message.answer(format_day(group_name, weekday, week[weekday]))
-        await asyncio.sleep(0.1)
+        text = format_day(group_name, weekday, week[weekday])
+        await send_long(message, text)
+        await asyncio.sleep(0.15)
 
 
 @router.message(F.text == "🔗 Ссылка на сайт")
