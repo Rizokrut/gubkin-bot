@@ -1,10 +1,10 @@
 """
-Парсер читает готовый schedule_cache.json, который собрали с iPhone
-через закладку. Напрямую в Gubkin не ходит — Render туда не пускает.
+Парсер читает schedule_cache.json, собранный с iPhone через закладку.
+Берём уроки ТОЛЬКО за текущую неделю (сегодня + 6 дней) и убираем дубликаты.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 
@@ -21,6 +21,11 @@ class ScheduleAuthError(Exception):
 
 class ScheduleFormatError(Exception):
     """Оставлено для совместимости с main.py."""
+
+
+def _date_key(d: date) -> str:
+    """Ключ в формате, который использовался при сборе: 'дд-мм-гггг'."""
+    return f"{d.day:02d}-{d.month:02d}-{d.year:04d}"
 
 
 async def _load_cache() -> dict:
@@ -45,8 +50,8 @@ async def fetch_schedule(
     date_str: str | None = None,
 ) -> list[dict]:
     """
-    Возвращает список уроков для группы из кэша.
-    Параметр cookie оставлен для совместимости с main.py, не используется.
+    Возвращает плоский список уроков для группы.
+    Параметр cookie оставлен для совместимости с main.py.
     """
     cache = await _load_cache()
     groups = cache.get("groups") or {}
@@ -65,24 +70,50 @@ async def fetch_schedule(
     if not days:
         return []
 
+    # Определяем, какие дни нам нужны
+    wanted_keys = []
     if date_str:
-        wanted = None
+        # Явно переданная дата (формат дд-мм-гггг или д-м-гггг)
         try:
             parts = date_str.split("-")
             if len(parts) == 3:
                 d, m, y = (int(p) for p in parts)
-                wanted = f"{d:02d}-{m:02d}-{y:04d}"
+                wanted_keys = [f"{d:02d}-{m:02d}-{y:04d}"]
         except Exception:
-            wanted = None
+            wanted_keys = []
+    else:
+        # По умолчанию: сегодня + 6 дней (одна неделя)
+        today = date.today()
+        wanted_keys = [_date_key(today + timedelta(days=i)) for i in range(7)]
 
-        if wanted and wanted in days:
-            return days[wanted]
-        if wanted:
-            return []
-
+    # Собираем уроки и убираем дубликаты
+    seen = set()
     lessons: list[dict] = []
-    for day_lessons in days.values():
-        lessons.extend(day_lessons)
+
+    for key in wanted_keys:
+        day_lessons = days.get(key)
+        if not day_lessons:
+            continue
+
+        for lesson in day_lessons:
+            # Уникальный ключ: день недели + время + предмет + тип + аудитория
+            sig = (
+                lesson.get("weekday"),
+                lesson.get("time_slot") or "",
+                lesson.get("subject") or "",
+                lesson.get("lesson_type") or "",
+                lesson.get("room") or "",
+                lesson.get("teacher") or "",
+            )
+            if sig in seen:
+                continue
+            seen.add(sig)
+            lessons.append(lesson)
+
+    logger.info(
+        "group=%s: собрано %s уроков (дни: %s)",
+        group_id, len(lessons), wanted_keys,
+    )
     return lessons
 
 
