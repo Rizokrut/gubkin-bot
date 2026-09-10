@@ -1,6 +1,9 @@
 """
-Парсер читает готовый schedule_cache.json, который собрали с iPhone
-через закладку. Напрямую в Gubkin не ходит — Render туда не пускает.
+Парсер читает готовый schedule_cache.json с GitHub.
+Защита от дубликатов: API Губкина на каждый день возвращает расписание
+всей недели целиком, поэтому в кэше один и тот же урок лежит много раз.
+Здесь мы дедуплицируем уроки по ключу (weekday, time_slot, subject, room,
+teacher, lesson_type).
 """
 
 import logging
@@ -15,8 +18,7 @@ CACHE_URL = "https://raw.githubusercontent.com/Rizokrut/gubkin-bot/main/schedule
 
 CACHE_TIMEOUT = httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=15.0)
 
-# Кэш в памяти: не тянем один и тот же файл 44 раза подряд
-_CACHE_TTL = 60  # секунд
+_CACHE_TTL = 60
 _cache: dict | None = None
 _cache_time: float = 0.0
 
@@ -34,7 +36,6 @@ async def _load_cache() -> dict:
 
     now = time.monotonic()
     if _cache is not None and (now - _cache_time) < _CACHE_TTL:
-        logger.info("Использую кэш из памяти (%ss жизни)", round(now - _cache_time, 1))
         return _cache
 
     logger.info("Скачиваю schedule_cache.json с GitHub")
@@ -44,7 +45,6 @@ async def _load_cache() -> dict:
             response.raise_for_status()
         except httpx.RequestError as e:
             logger.error("Ошибка соединения с кэшем: %r", e)
-            # Если сеть упала, но есть старый кэш — отдадим его
             if _cache is not None:
                 logger.warning("Отдаю устаревший кэш из памяти")
                 return _cache
@@ -62,13 +62,28 @@ async def _load_cache() -> dict:
     return data
 
 
+def _lesson_signature(lesson: dict) -> tuple:
+    """
+    Ключ для дедупликации. Если у двух уроков все поля совпадают —
+    считаем их одним уроком.
+    """
+    return (
+        lesson.get("weekday"),
+        (lesson.get("time_slot") or "").strip(),
+        (lesson.get("subject") or "").strip(),
+        (lesson.get("room") or "").strip(),
+        (lesson.get("teacher") or "").strip(),
+        (lesson.get("lesson_type") or "").strip(),
+    )
+
+
 async def fetch_schedule(
     cookie: str | None = None,
     group_id: int = 0,
     date_str: str | None = None,
 ) -> list[dict]:
     """
-    Возвращает плоский список уроков для группы.
+    Возвращает список уроков для группы, БЕЗ дубликатов.
     Параметр cookie оставлен для совместимости с main.py.
     """
     cache = await _load_cache()
@@ -88,27 +103,24 @@ async def fetch_schedule(
     if not days:
         return []
 
-    if date_str:
-        wanted = None
-        try:
-            parts = date_str.split("-")
-            if len(parts) == 3:
-                d, m, y = (int(p) for p in parts)
-                wanted = f"{d:02d}-{m:02d}-{y:04d}"
-        except Exception:
-            wanted = None
-
-        if wanted and wanted in days:
-            return days[wanted]
-        if wanted:
-            return []
-
+    seen: set = set()
     lessons: list[dict] = []
+
     for day_lessons in days.values():
-        lessons.extend(day_lessons)
+        for lesson in day_lessons:
+            sig = _lesson_signature(lesson)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            lessons.append(lesson)
+
+    logger.info(
+        "group=%s: собрано %s уроков после дедупликации",
+        group_id,
+        len(lessons),
+    )
     return lessons
 
 
 async def check_cookie_valid(cookie: str, sample_group_id: int = 9336) -> bool:
-    """Заглушка — кука больше не нужна."""
     return True
