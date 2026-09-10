@@ -6,7 +6,7 @@
   2) Старый:         groups[key].days = {date: [lesson, ...]}
 
 Дедупликация по (weekday, time_slot, subject, room, teacher, lesson_type).
-Отменённые пары (isCancelled / is_cancelled) пропускаются.
+Отменённые пары сохраняются с флагом is_cancelled.
 """
 
 from __future__ import annotations

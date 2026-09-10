@@ -93,11 +93,19 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
     lines = []
     for lesson in lessons:
         type_part = f" ({lesson['lesson_type']})" if lesson.get("lesson_type") else ""
-        lines.append(
-            f"⏰ <b>{lesson.get('time_slot', '')}</b>\n"
-            f"📘 {lesson.get('subject', '')}{type_part}\n"
-            f"🚪 {lesson.get('room', '')}    👤 {lesson.get('teacher', '')}"
-        )
+        cancelled = lesson.get("is_cancelled")
+        if cancelled in (1, "1", True, "true", "True"):
+            lines.append(
+                f"⏰ <s>{lesson.get('time_slot', '')}</s>\n"
+                f"❌ <s>{lesson.get('subject', '')}{type_part}</s>\n"
+                f"<i>Пара отменена</i>"
+            )
+        else:
+            lines.append(
+                f"⏰ <b>{lesson.get('time_slot', '')}</b>\n"
+                f"📘 {lesson.get('subject', '')}{type_part}\n"
+                f"🚪 {lesson.get('room', '')}    👤 {lesson.get('teacher', '')}"
+            )
     return header + "\n\n".join(lines)
 
 
@@ -240,9 +248,8 @@ async def cmd_merge(message: Message) -> None:
     if not is_admin(message.from_user.id):
         return
     await message.answer(
-        "Команда /merge больше не нужна.\n\n"
-        "Залей один полный <code>schedule_cache.json</code> в GitHub "
-        "и напиши /update."
+        "Команда /merge отключена.\n"
+        "Пришли part1.json … part8.json — соберём один schedule_cache.json."
     )
 
 
