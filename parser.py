@@ -77,7 +77,8 @@ def invalidate_cache() -> None:
 
 def _is_cancelled(lesson: dict) -> bool:
     return bool(
-        lesson.get("isCancelled")
+        lesson.get("isCanceled")
+        or lesson.get("isCancelled")
         or lesson.get("is_cancelled")
         or lesson.get("cancelled")
     )
@@ -166,7 +167,7 @@ def _weekday(lesson: dict) -> int | None:
 
 
 def _normalize_lesson(lesson: dict) -> dict | None:
-    if not isinstance(lesson, dict) or _is_cancelled(lesson):
+    if not isinstance(lesson, dict):
         return None
 
     weekday = _weekday(lesson)
@@ -183,6 +184,7 @@ def _normalize_lesson(lesson: dict) -> dict | None:
         "teacher": _teacher_name(lesson),
         "lesson_type": _norm_text(lesson.get("lesson_type") or lesson.get("type")),
         "week_parity": _norm_text(lesson.get("week_parity")) or "all",
+        "is_cancelled": _is_cancelled(lesson),
     }
 
 
@@ -194,6 +196,7 @@ def _signature(lesson: dict) -> tuple:
         lesson.get("room") or "",
         lesson.get("teacher") or "",
         lesson.get("lesson_type") or "",
+        bool(lesson.get("is_cancelled")),
     )
 
 
