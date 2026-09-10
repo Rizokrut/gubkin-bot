@@ -1,10 +1,11 @@
 """
-Парсер читает schedule_cache.json, собранный с iPhone через закладку.
-Берём уроки ТОЛЬКО за текущую неделю (сегодня + 6 дней) и убираем дубликаты.
+Парсер читает готовый schedule_cache.json, который собрали с iPhone
+через закладку. Напрямую в Gubkin не ходит — Render туда не пускает.
 """
 
 import logging
-from datetime import date, timedelta
+import time
+from datetime import date
 
 import httpx
 
@@ -12,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 CACHE_URL = "https://raw.githubusercontent.com/Rizokrut/gubkin-bot/main/schedule_cache.json"
 
-CACHE_TIMEOUT = httpx.Timeout(connect=10.0, read=20.0, write=10.0, pool=10.0)
+CACHE_TIMEOUT = httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=15.0)
+
+# Кэш в памяти: не тянем один и тот же файл 44 раза подряд
+_CACHE_TTL = 60  # секунд
+_cache: dict | None = None
+_cache_time: float = 0.0
 
 
 class ScheduleAuthError(Exception):
@@ -23,25 +29,37 @@ class ScheduleFormatError(Exception):
     """Оставлено для совместимости с main.py."""
 
 
-def _date_key(d: date) -> str:
-    """Ключ в формате, который использовался при сборе: 'дд-мм-гггг'."""
-    return f"{d.day:02d}-{d.month:02d}-{d.year:04d}"
-
-
 async def _load_cache() -> dict:
+    global _cache, _cache_time
+
+    now = time.monotonic()
+    if _cache is not None and (now - _cache_time) < _CACHE_TTL:
+        logger.info("Использую кэш из памяти (%ss жизни)", round(now - _cache_time, 1))
+        return _cache
+
+    logger.info("Скачиваю schedule_cache.json с GitHub")
     async with httpx.AsyncClient(timeout=CACHE_TIMEOUT, follow_redirects=True) as client:
         try:
             response = await client.get(CACHE_URL)
             response.raise_for_status()
         except httpx.RequestError as e:
             logger.error("Ошибка соединения с кэшем: %r", e)
+            # Если сеть упала, но есть старый кэш — отдадим его
+            if _cache is not None:
+                logger.warning("Отдаю устаревший кэш из памяти")
+                return _cache
             raise ScheduleAuthError(f"Нет доступа к кэшу: {type(e).__name__}") from e
 
     try:
-        return response.json()
+        data = response.json()
     except Exception as e:
         logger.error("Кэш не JSON: %r", e)
         raise ScheduleFormatError("Кэш повреждён") from e
+
+    _cache = data
+    _cache_time = now
+    logger.info("Кэш обновлён, групп: %s", len(data.get("groups", {})))
+    return data
 
 
 async def fetch_schedule(
@@ -70,50 +88,24 @@ async def fetch_schedule(
     if not days:
         return []
 
-    # Определяем, какие дни нам нужны
-    wanted_keys = []
     if date_str:
-        # Явно переданная дата (формат дд-мм-гггг или д-м-гггг)
+        wanted = None
         try:
             parts = date_str.split("-")
             if len(parts) == 3:
                 d, m, y = (int(p) for p in parts)
-                wanted_keys = [f"{d:02d}-{m:02d}-{y:04d}"]
+                wanted = f"{d:02d}-{m:02d}-{y:04d}"
         except Exception:
-            wanted_keys = []
-    else:
-        # По умолчанию: сегодня + 6 дней (одна неделя)
-        today = date.today()
-        wanted_keys = [_date_key(today + timedelta(days=i)) for i in range(7)]
+            wanted = None
 
-    # Собираем уроки и убираем дубликаты
-    seen = set()
+        if wanted and wanted in days:
+            return days[wanted]
+        if wanted:
+            return []
+
     lessons: list[dict] = []
-
-    for key in wanted_keys:
-        day_lessons = days.get(key)
-        if not day_lessons:
-            continue
-
-        for lesson in day_lessons:
-            # Уникальный ключ: день недели + время + предмет + тип + аудитория
-            sig = (
-                lesson.get("weekday"),
-                lesson.get("time_slot") or "",
-                lesson.get("subject") or "",
-                lesson.get("lesson_type") or "",
-                lesson.get("room") or "",
-                lesson.get("teacher") or "",
-            )
-            if sig in seen:
-                continue
-            seen.add(sig)
-            lessons.append(lesson)
-
-    logger.info(
-        "group=%s: собрано %s уроков (дни: %s)",
-        group_id, len(lessons), wanted_keys,
-    )
+    for day_lessons in days.values():
+        lessons.extend(day_lessons)
     return lessons
 
 
