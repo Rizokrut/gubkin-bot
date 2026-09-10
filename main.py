@@ -293,7 +293,7 @@ async def today_schedule(message: Message) -> None:
         await message.answer("Сначала выбери группу командой /start")
         return
     await send_day_schedule(
-        message, user["group_name"], user["group_id"], datetime.now().weekday()
+        message, user["group_name"], user["group_id"], datetime.now(TZ).weekday()
     )
 
 
@@ -303,7 +303,7 @@ async def tomorrow_schedule(message: Message) -> None:
     if not user or not user.get("group_id"):
         await message.answer("Сначала выбери группу командой /start")
         return
-    weekday = (datetime.now() + timedelta(days=1)).weekday()
+    weekday = (datetime.now(TZ) + timedelta(days=1)).weekday()
     await send_day_schedule(message, user["group_name"], user["group_id"], weekday)
 
 
