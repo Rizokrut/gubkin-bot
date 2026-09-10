@@ -20,6 +20,14 @@ USER_AGENT = (
 REQUEST_TIMEOUT = httpx.Timeout(connect=6.0, read=8.0, write=6.0, pool=6.0)
 
 
+class ScheduleAuthError(Exception):
+    """Сайт ответил, но state=false — кука недействительна/устарела."""
+
+
+class ScheduleFormatError(Exception):
+    """Сайт ответил не-JSON (обычно HTML со страницей логина/капчи)."""
+
+
 def make_client(cookie: str) -> httpx.AsyncClient:
     """
     Поддерживает:
@@ -112,14 +120,14 @@ async def fetch_schedule(cookie: str, group_id: int, date_str: str | None = None
                 data = response.json()
             except Exception:
                 logger.error("group=%s API НЕ ВЕРНУЛ JSON", group_id)
-                return []
+                raise ScheduleFormatError(body[:300])
 
             logger.info("JSON KEYS: %s", list(data.keys()))
             logger.info("STATE: %r", data.get("state"))
 
             if not data.get("state"):
                 logger.error("group=%s API вернул state=false", group_id)
-                return []
+                raise ScheduleAuthError(str(data)[:300])
 
             rows = data.get("rows") or {}
             organizations = rows.get("organizations") or []
@@ -156,6 +164,8 @@ async def fetch_schedule(cookie: str, group_id: int, date_str: str | None = None
             logger.info("group=%s FINAL LESSONS=%s", group_id, len(lessons))
             return lessons
 
+    except (ScheduleAuthError, ScheduleFormatError):
+        raise
     except httpx.TimeoutException:
         logger.error("group=%s TIMEOUT API", group_id, exc_info=True)
         return []

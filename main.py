@@ -17,6 +17,7 @@ import database as db
 import keyboards as kb
 import groups_data
 import parser as site_parser
+from parser import ScheduleAuthError, ScheduleFormatError
 from config import BOT_TOKEN, ADMIN_ID, BASE_URL
 
 # =========================================================
@@ -281,6 +282,12 @@ async def _update_one_group(
             else:
                 counters["empty"] += 1
                 logger.warning("EMPTY response for %s", group_name)
+        except ScheduleAuthError:
+            counters["auth_failed"] += 1
+            logger.error("AUTH FAILED (state=false) for %s (%s)", group_name, group_id)
+        except ScheduleFormatError:
+            counters["format_failed"] += 1
+            logger.error("BAD RESPONSE (not JSON) for %s (%s)", group_name, group_id)
         except asyncio.TimeoutError:
             counters["errors"] += 1
             logger.error("TIMEOUT %ss for %s (%s)", PER_GROUP_TIMEOUT, group_name, group_id)
@@ -298,6 +305,8 @@ async def _update_one_group(
                     f"Обработано: {done}/{total}\n"
                     f"✅ Успешно: {counters['updated']}\n"
                     f"⚠️ Пусто: {counters['empty']}\n"
+                    f"🔒 Кука не работает: {counters['auth_failed']}\n"
+                    f"📄 Плохой ответ: {counters['format_failed']}\n"
                     f"❌ Ошибок: {counters['errors']}"
                 )
             except Exception:
@@ -329,7 +338,7 @@ async def run_update(status_message: Message | None = None) -> str:
         logger.exception("Failed to save group structure")
         return "❌ Не удалось сохранить список групп."
 
-    counters = {"updated": 0, "empty": 0, "errors": 0, "done": 0}
+    counters = {"updated": 0, "empty": 0, "errors": 0, "done": 0, "auth_failed": 0, "format_failed": 0}
     semaphore = asyncio.Semaphore(UPDATE_CONCURRENCY)
 
     tasks = [
@@ -341,8 +350,9 @@ async def run_update(status_message: Message | None = None) -> str:
     logger.info("========================================")
     logger.info("UPDATE FINISHED")
     logger.info(
-        "TOTAL=%s SUCCESS=%s EMPTY=%s ERRORS=%s",
-        total, counters["updated"], counters["empty"], counters["errors"],
+        "TOTAL=%s SUCCESS=%s EMPTY=%s AUTH_FAILED=%s FORMAT_FAILED=%s ERRORS=%s",
+        total, counters["updated"], counters["empty"],
+        counters["auth_failed"], counters["format_failed"], counters["errors"],
     )
     logger.info("========================================")
 
@@ -351,12 +361,25 @@ async def run_update(status_message: Message | None = None) -> str:
         f"Всего групп: {total}\n"
         f"✅ Успешно: {counters['updated']}\n"
         f"⚠️ Пустых: {counters['empty']}\n"
+        f"🔒 Кука не работает: {counters['auth_failed']}\n"
+        f"📄 Плохой ответ: {counters['format_failed']}\n"
         f"❌ Ошибок: {counters['errors']}"
     )
-    if counters["updated"] == 0:
+    if counters["auth_failed"] > 0:
         result += (
-            "\n\n⚠️ Ни одна группа не обновилась — скорее всего, кука PHPSESSID "
-            "устарела. Получите новую через браузер и снова используйте /setcookie."
+            "\n\n🔒 Сайт явно сказал, что кука недействительна (state=false). "
+            "Получите новую через браузер и снова используйте /setcookie."
+        )
+    elif counters["format_failed"] > 0:
+        result += (
+            "\n\n📄 Сайт вернул не JSON, а что-то другое (скорее всего HTML — "
+            "страницу входа или капчи). Кука почти наверняка устарела."
+        )
+    elif counters["updated"] == 0 and counters["empty"] > 0:
+        result += (
+            "\n\n⚠️ Все группы ответили state=true, но без пар. Странно, если "
+            "это происходит для ВСЕХ 40+ групп сразу — стоит проверить формат "
+            "куки (нужно значение PHPSESSID, а не что-то другое)."
         )
     return result
 
