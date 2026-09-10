@@ -1,8 +1,10 @@
 import asyncio
+import json
 import logging
 import os
 from datetime import datetime, timedelta
 
+import httpx
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -36,6 +38,13 @@ WEEKDAY_NAMES_RU = [
 UPDATE_CONCURRENCY = 6
 PER_GROUP_TIMEOUT = 25
 
+# GitHub
+GITHUB_USER = "Rizokrut"
+GITHUB_REPO = "gubkin-bot"
+GITHUB_BRANCH = "main"
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_API = "https://api.github.com"
+
 
 class Registration(StatesGroup):
     choosing_course = State()
@@ -46,6 +55,159 @@ def is_admin(telegram_id: int) -> bool:
     return telegram_id == ADMIN_ID
 
 
+# =========================================================
+# GITHUB HELPERS
+# =========================================================
+def _gh_headers() -> dict:
+    h = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "gubkin-bot",
+    }
+    if GITHUB_TOKEN:
+        h["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return h
+
+
+async def _gh_download_json(filename: str) -> dict | None:
+    url = (
+        f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/"
+        f"{GITHUB_BRANCH}/{filename}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(url)
+            if r.status_code != 200:
+                logger.warning("Файл %s не скачался: HTTP %s", filename, r.status_code)
+                return None
+            return r.json()
+    except Exception as e:
+        logger.error("Ошибка скачивания %s: %r", filename, e)
+        return None
+
+
+async def _gh_upload_json(filename: str, data: dict) -> bool:
+    if not GITHUB_TOKEN:
+        logger.error("GITHUB_TOKEN не установлен — не могу загрузить %s", filename)
+        return False
+
+    url = f"{GITHUB_API}/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{filename}"
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Получаем sha существующего файла (если он есть)
+        sha = None
+        try:
+            r = await client.get(url, headers=_gh_headers())
+            if r.status_code == 200:
+                sha = r.json().get("sha")
+        except Exception:
+            pass
+
+        import base64
+        content = base64.b64encode(
+            json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        ).decode("ascii")
+
+        body = {
+            "message": f"Merge {filename} from /merge",
+            "content": content,
+            "branch": GITHUB_BRANCH,
+        }
+        if sha:
+            body["sha"] = sha
+
+        r = await client.put(url, headers=_gh_headers(), json=body)
+        if r.status_code in (200, 201):
+            return True
+        logger.error("Не удалось загрузить %s: HTTP %s %s", filename, r.status_code, r.text[:200])
+        return False
+
+
+# =========================================================
+# /MERGE — собирает schedule_cache.json из part2..part8
+# =========================================================
+@router.message(Command("merge"))
+async def cmd_merge(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+
+    status = await message.answer("🔧 <b>Склеиваю части...</b>\n\nЧитаю файлы из GitHub.")
+
+    if not GITHUB_TOKEN:
+        await status.edit_text(
+            "❌ <b>Нужен GITHUB_TOKEN.</b>\n\n"
+            "Добавь переменную окружения GITHUB_TOKEN на Render "
+            "(это Personal Access Token с правами на репозиторий)."
+        )
+        return
+
+    # 1. Старый schedule_cache.json (это Часть 1)
+    base = await _gh_download_json("schedule_cache.json")
+    if base is None:
+        await status.edit_text("❌ Не смог прочитать schedule_cache.json из GitHub.")
+        return
+
+    if "groups" not in base:
+        base = {"groups": {}}
+
+    merged_groups = dict(base.get("groups", {}))
+    logger.info("После Части 1: %s групп", len(merged_groups))
+
+    # 2. Скачиваем части 2..8
+    parts = [2, 3, 4, 5, 6, 7, 8]
+    for p in parts:
+        fname = f"part{p}.json"
+        await status.edit_text(
+            f"🔧 <b>Склеиваю части...</b>\n\n"
+            f"Читаю {fname}..."
+        )
+        part = await _gh_download_json(fname)
+        if part is None or "groups" not in part:
+            logger.warning("%s пропущен", fname)
+            continue
+
+        added = 0
+        for key, val in part["groups"].items():
+            if val.get("days"):
+                merged_groups[key] = val
+                added += 1
+        logger.info("Из %s добавлено групп с данными: %s", fname, added)
+
+    # 3. Формируем итог
+    result = {
+        "generated_at": datetime.now().date().isoformat(),
+        "days_ahead": base.get("days_ahead", 14),
+        "groups": merged_groups,
+    }
+
+    total = len(result["groups"])
+    non_empty = sum(1 for g in result["groups"].values() if g.get("days"))
+
+    # 4. Заливаем обратно
+    await status.edit_text(
+        f"🔧 <b>Склеиваю части...</b>\n\n"
+        f"Собрано групп: {total}\n"
+        f"Из них с расписанием: {non_empty}\n\n"
+        f"Загружаю в GitHub..."
+    )
+    ok = await _gh_upload_json("schedule_cache.json", result)
+
+    if ok:
+        await status.edit_text(
+            f"✅ <b>Готово!</b>\n\n"
+            f"Всего групп в кэше: {total}\n"
+            f"С расписанием: {non_empty}\n\n"
+            f"Теперь запусти /update, чтобы подтянуть расписание в базу бота."
+        )
+    else:
+        await status.edit_text(
+            "❌ Не удалось загрузить новый schedule_cache.json в GitHub.\n"
+            "Проверь GITHUB_TOKEN и логи Render."
+        )
+
+
+# =========================================================
+# FORMAT SCHEDULE
+# =========================================================
 def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
     header = f"<b>{WEEKDAY_NAMES_RU[weekday]}</b> — группа {group_name}\n\n"
     if not lessons:
@@ -66,6 +228,9 @@ async def send_day_schedule(message: Message, group_name: str, group_id: int, we
     await message.answer(format_day(group_name, weekday, lessons))
 
 
+# =========================================================
+# /START
+# =========================================================
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
     user = await db.get_user(message.from_user.id)
@@ -79,7 +244,8 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     courses = await db.get_courses()
     if not courses:
         await message.answer(
-            "База расписания пока пуста.\n\nПопросите администратора выполнить команду /update."
+            "База расписания пока пуста.\n\n"
+            "Попросите администратора выполнить /update."
         )
         return
 
@@ -191,6 +357,9 @@ async def set_cookie(message: Message) -> None:
     await message.answer("Кука больше не нужна. Данные берутся из schedule_cache.json.")
 
 
+# =========================================================
+# /UPDATE
+# =========================================================
 @router.message(Command("update"))
 async def force_update(message: Message) -> None:
     if not is_admin(message.from_user.id):
@@ -213,7 +382,6 @@ async def _update_one_group(
     status_message: Message | None,
 ) -> None:
     async with semaphore:
-        logger.info("START group=%s id=%s", group_name, group_id)
         try:
             lessons = await asyncio.wait_for(
                 site_parser.fetch_schedule(group_id=group_id),
@@ -222,26 +390,20 @@ async def _update_one_group(
             if lessons:
                 await db.save_schedule_for_group(group_id, lessons)
                 counters["updated"] += 1
-                logger.info("SUCCESS %s (%s lessons)", group_name, len(lessons))
             else:
                 counters["empty"] += 1
-                logger.warning("EMPTY response for %s", group_name)
         except ScheduleAuthError:
             counters["auth_failed"] += 1
-            logger.error("AUTH FAILED for %s (%s)", group_name, group_id)
         except ScheduleFormatError:
             counters["format_failed"] += 1
-            logger.error("BAD RESPONSE for %s (%s)", group_name, group_id)
         except asyncio.TimeoutError:
             counters["errors"] += 1
-            logger.error("TIMEOUT %ss for %s (%s)", PER_GROUP_TIMEOUT, group_name, group_id)
         except Exception as exc:
             counters["errors"] += 1
             logger.exception("ERROR for %s (%s): %s", group_name, group_id, exc)
 
         counters["done"] += 1
         done = counters["done"]
-
         if status_message and (done == 1 or done % 5 == 0 or done == total):
             try:
                 await status_message.edit_text(
@@ -253,23 +415,18 @@ async def _update_one_group(
                     f"❌ Ошибок: {counters['errors']}"
                 )
             except Exception:
-                logger.exception("Failed to update Telegram progress message")
+                pass
 
 
 async def run_update(status_message: Message | None = None) -> str:
-    logger.info("UPDATE STARTED")
-
     if not groups_data.GROUPS:
         return "❌ Список групп пуст."
 
     total = len(groups_data.GROUPS)
-    logger.info("Groups loaded: %s", total)
 
     try:
         await db.save_structure(groups_data.GROUPS)
-        logger.info("Group structure saved")
     except Exception:
-        logger.exception("Failed to save group structure")
         return "❌ Не удалось сохранить список групп."
 
     counters = {"updated": 0, "empty": 0, "errors": 0, "done": 0, "auth_failed": 0, "format_failed": 0}
@@ -281,13 +438,7 @@ async def run_update(status_message: Message | None = None) -> str:
     ]
     await asyncio.gather(*tasks)
 
-    logger.info(
-        "UPDATE FINISHED TOTAL=%s SUCCESS=%s EMPTY=%s FORMAT_FAILED=%s ERRORS=%s",
-        total, counters["updated"], counters["empty"],
-        counters["format_failed"], counters["errors"],
-    )
-
-    result = (
+    return (
         "✅ <b>Обновление завершено!</b>\n\n"
         f"Всего групп: {total}\n"
         f"✅ Успешно: {counters['updated']}\n"
@@ -295,16 +446,14 @@ async def run_update(status_message: Message | None = None) -> str:
         f"📄 Плохой ответ: {counters['format_failed']}\n"
         f"❌ Ошибок: {counters['errors']}"
     )
-    return result
 
 
 async def scheduled_update(bot: Bot) -> None:
-    logger.info("Автоматическое обновление запущено")
     result = await run_update()
     try:
         await bot.send_message(ADMIN_ID, f"[Автообновление]\n\n{result}")
     except Exception:
-        logger.exception("Не удалось отправить результат автообновления")
+        pass
 
 
 @router.message(Command("stats"))
@@ -315,6 +464,9 @@ async def stats(message: Message) -> None:
     await message.answer(f"Всего пользователей бота: <b>{count}</b>")
 
 
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 async def handle_health(request: web.Request) -> web.Response:
     return web.Response(text="ok")
 
@@ -327,14 +479,15 @@ async def run_health_server() -> None:
     port = int(os.getenv("PORT", "10000"))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logger.info("Health-check server started on port %s", port)
 
 
+# =========================================================
+# MAIN
+# =========================================================
 async def main() -> None:
     logger.info("Starting Gubkin Bot")
 
     await db.init_db()
-    logger.info("Database initialized")
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher(storage=MemoryStorage())
@@ -351,11 +504,9 @@ async def main() -> None:
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Scheduler started: daily at 03:00 Asia/Tashkent")
 
     await run_health_server()
 
-    logger.info("Бот запущен")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
