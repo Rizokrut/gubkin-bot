@@ -45,13 +45,20 @@ async def init_db() -> None:
                 teacher TEXT,
                 lesson_type TEXT,
                 week_parity TEXT,
-                is_cancelled INTEGER DEFAULT 0
+                is_cancelled INTEGER DEFAULT 0,
+                subgroup INTEGER DEFAULT 0
             )
             """
         )
         try:
             await db.execute(
                 "ALTER TABLE schedule ADD COLUMN is_cancelled INTEGER DEFAULT 0"
+            )
+        except Exception:
+            pass
+        try:
+            await db.execute(
+                "ALTER TABLE schedule ADD COLUMN subgroup INTEGER DEFAULT 0"
             )
         except Exception:
             pass
@@ -252,8 +259,8 @@ async def save_schedule_for_group(group_id: int, lessons: list[dict]) -> None:
         await db.execute("DELETE FROM schedule WHERE group_id = ?", (group_id,))
         await db.executemany(
             """
-            INSERT INTO schedule (group_id, weekday, time_slot, subject, room, teacher, lesson_type, week_parity, is_cancelled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO schedule (group_id, weekday, time_slot, subject, room, teacher, lesson_type, week_parity, is_cancelled, subgroup)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -266,6 +273,7 @@ async def save_schedule_for_group(group_id: int, lessons: list[dict]) -> None:
                     lesson.get("lesson_type"),
                     lesson.get("week_parity", "all"),
                     1 if lesson.get("is_cancelled") else 0,
+                    int(lesson.get("subgroup") or 0),
                 )
                 for lesson in lessons
             ],

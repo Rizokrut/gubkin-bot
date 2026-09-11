@@ -166,6 +166,15 @@ def _weekday(lesson: dict) -> int | None:
     return None
 
 
+def _subgroup(lesson: dict) -> int:
+    raw = lesson.get("subgroup")
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return 0
+    return n if n in (1, 2) else 0
+
+
 def _normalize_lesson(lesson: dict) -> dict | None:
     if not isinstance(lesson, dict):
         return None
@@ -185,6 +194,7 @@ def _normalize_lesson(lesson: dict) -> dict | None:
         "lesson_type": _norm_text(lesson.get("lesson_type") or lesson.get("type")),
         "week_parity": _norm_text(lesson.get("week_parity")) or "all",
         "is_cancelled": _is_cancelled(lesson),
+        "subgroup": _subgroup(lesson),
     }
 
 
@@ -197,6 +207,7 @@ def _signature(lesson: dict) -> tuple:
         lesson.get("teacher") or "",
         lesson.get("lesson_type") or "",
         bool(lesson.get("is_cancelled")),
+        lesson.get("subgroup") or 0,
     )
 
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-10",
+  "generated_at": "2026-09-11T13:08:58.043Z",
   "days_ahead": 7,
   "source": "safari-parts-v2",
   "groups": {
@@ -4336,1435 +4336,6 @@
         ]
       }
     },
-    "II курс|УРГ-25-06|10118": {
-      "course": "II курс",
-      "name": "УРГ-25-06",
-      "group_id": 10118,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Сопротивление материалов",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "8:30-10:00",
-            "subject": "Сопротивление материалов",
-            "room": "307 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Квантовая физика",
-            "room": "612 - филиал в г.Ташкент",
-            "teacher": "Насиров Т.З.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Квантовая физика",
-            "room": "613 - филиал в г.Ташкент",
-            "teacher": "Насиров Т.З.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Функции многих переменных. Дифференциальные уравнения",
-            "room": "211 - филиал в г.Ташкент",
-            "teacher": "Рахматуллаева Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Материаловедение",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмеджанов Ю.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Основы строительства нефтяных и газовых скважин",
-            "room": "1 (лаб) - филиал в г.Ташкент",
-            "teacher": "Каримов У.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Основы строительства нефтяных и газовых скважин",
-            "room": "1 (лаб) - филиал в г.Ташкент",
-            "teacher": "Каримов У.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "508 - филиал в г.Ташкент",
-            "teacher": "Усманова А.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Квантовая физика",
-            "room": "103 - филиал в г.Ташкент",
-            "teacher": "Курбанов Р.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Узбекский язык",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "12:20-13:50",
-            "subject": "Теоретическая механика 2",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык",
-            "room": "508 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "12:20-13:50",
-            "subject": "Материаловедение",
-            "room": "503 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Химия нефти и газа",
-            "room": "606 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "14:00-15:30",
-            "subject": "Консультация",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "II курс|УРН-25-07|10119": {
-      "course": "II курс",
-      "name": "УРН-25-07",
-      "group_id": 10119,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "507 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х., Султанова Ю.Т.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "12:20-13:50",
-            "subject": "Сопротивление материалов",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Сопротивление материалов",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "8:30-10:00",
-            "subject": "Сопротивление материалов",
-            "room": "307 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Квантовая физика",
-            "room": "612 - филиал в г.Ташкент",
-            "teacher": "Насиров Т.З.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "412 - филиал в г.Ташкент",
-            "teacher": "Султанова Ю.Т.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р., Сотрудник №2",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Функции многих переменных. Дифференциальные уравнения",
-            "room": "202 - филиал в г.Ташкент",
-            "teacher": "Усмонхожаев З.Ю.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Основы строительства нефтяных и газовых скважин",
-            "room": "1 (лаб) - филиал в г.Ташкент",
-            "teacher": "Нурматов У.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Квантовая физика",
-            "room": "103 - филиал в г.Ташкент",
-            "teacher": "Курбанов Р.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Узбекский язык",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Узбекский язык",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "14:00-15:30",
-            "subject": "Теоретическая механика 2",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Химия нефти и газа",
-            "room": "606 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Химия нефти и газа",
-            "room": "606 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "12:20-13:50",
-            "subject": "Материаловедение",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Шукурджанов Ж.Д.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "15:40-17:10",
-            "subject": "Консультация",
-            "room": "405 - филиал в г.Ташкент",
-            "teacher": "Ахмедов М.М., Добычина С.О., Абдурахимов С.С., Евстафеев Е.А., Акрамов Б.Ш., Олимжанов С.Р.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "15:40-17:10",
-            "subject": "Консультация",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмедов М.М., Добычина С.О., Абдурахимов С.С., Евстафеев Е.А., Акрамов Б.Ш., Олимжанов С.Р.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "14:00-15:30",
-            "subject": "Консультация",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "II курс|УТП-25-08|10174": {
-      "course": "II курс",
-      "name": "УТП-25-08",
-      "group_id": 10174,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "506 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "14:00-15:30",
-            "subject": "Сопротивление материалов",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "8:30-10:00",
-            "subject": "Сопротивление материалов",
-            "room": "307 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Физика пласта",
-            "room": "407 - филиал в г.Ташкент",
-            "teacher": "Добычина С.О.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Квантовая физика",
-            "room": "612 - филиал в г.Ташкент",
-            "teacher": "Насиров Т.З.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Функции многих переменных. Дифференциальные уравнения",
-            "room": "202 - филиал в г.Ташкент",
-            "teacher": "Усмонхожаев З.Ю.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "14:00-15:30",
-            "subject": "Функции многих переменных. Дифференциальные уравнения",
-            "room": "1-19 - филиал в г.Ташкент",
-            "teacher": "Усмонхожаев З.Ю.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Квантовая физика",
-            "room": "103 - филиал в г.Ташкент",
-            "teacher": "Курбанов Р.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Узбекский язык",
-            "room": "409 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Теоретическая механика 2",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Квантовая физика",
-            "room": "610 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №2",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Химия нефти и газа",
-            "room": "605 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Химия нефти и газа",
-            "room": "606 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "15:40-17:10",
-            "subject": "Консультация",
-            "room": "405 - филиал в г.Ташкент",
-            "teacher": "Ахмедов М.М., Добычина С.О., Абдурахимов С.С., Евстафеев Е.А., Акрамов Б.Ш., Олимжанов С.Р.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "15:40-17:10",
-            "subject": "Консультация",
-            "room": "405 - филиал в г.Ташкент",
-            "teacher": "Ахмедов М.М., Добычина С.О., Абдурахимов С.С., Евстафеев Е.А., Акрамов Б.Ш., Олимжанов С.Р.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "II курс|УЭМ-25-09|10176": {
-      "course": "II курс",
-      "name": "УЭМ-25-09",
-      "group_id": 10176,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Проектный менеджмент: базовый курс",
-            "room": "206 - филиал в г.Ташкент",
-            "teacher": "Абдуллаева М.Б.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "507 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х., Рахманова М.У.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Сопротивление материалов",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Сопротивление материалов",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Рожкова Е.В.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Физика 3",
-            "room": "613 - филиал в г.Ташкент",
-            "teacher": "Насиров Т.З.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Физика 3",
-            "room": "613 - филиал в г.Ташкент",
-            "teacher": "Фаттахов А.А., Хожимирзаев Ш.Ш.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Физика 3",
-            "room": "609 - филиал в г.Ташкент",
-            "teacher": "Хожимирзаев Ш.Ш.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Религиоведение",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Намазова Ш.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Теоретическая механика",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Теоретическая механика",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Теоретическая механика",
-            "room": "505 - филиал в г.Ташкент",
-            "teacher": "Салямова К.Д.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №2",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Сотрудник №2",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык (английский)",
-            "room": "511 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №2, Сотрудник №3",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Основы экономических знаний",
-            "room": "206 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №3",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "12:20-13:50",
-            "subject": "Математика 3",
-            "room": "307 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №5",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Физика 3",
-            "room": "610 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "II курс|УЭЭ-25-10|10175": {
-      "course": "II курс",
-      "name": "УЭЭ-25-10",
-      "group_id": 10175,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Общий менеджмент",
-            "room": "211 - филиал в г.Ташкент",
-            "teacher": "Абдуллаева М.Б.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
-            "room": "413 - филиал в г.Ташкент",
-            "teacher": "Агзамов Ш.К.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Скулкова И.Н.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Скулкова И.Н.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
-            "room": "405 - филиал в г.Ташкент",
-            "teacher": "Исмаилова Г.М.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Управление документационным обеспечением компании",
-            "room": "209 - филиал в г.Ташкент",
-            "teacher": "Мирзахалилова Д.М.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "411 - филиал в г.Ташкент",
-            "teacher": "Рахманова М.У.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Профилированный иностранный язык",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Эмоциональный интеллект",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Мухамедов Ш.Б.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "12:20-13:50",
-            "subject": "Эмоциональный интеллект",
-            "room": "414 - филиал в г.Ташкент",
-            "teacher": "Мухамедов Ш.Б.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Бизнес-аналитика",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Рахимов Н.А.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Бизнес-аналитика",
-            "room": "209 - филиал в г.Ташкент",
-            "teacher": "Рахимов Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Экономика организаций",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Отто О.Э.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Экономика организаций",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Отто О.Э.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Узбекский язык",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Узбекский язык",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык",
-            "room": "510 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Эмоциональный интеллект",
-            "room": "413 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "14:00-15:30",
-            "subject": "Консультация",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Мухамедов Ш.Б.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "II курс|УБМ-25-11|10186": {
-      "course": "II курс",
-      "name": "УБМ-25-11",
-      "group_id": 10186,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Общий менеджмент",
-            "room": "211 - филиал в г.Ташкент",
-            "teacher": "Абдуллаева М.Б.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
-            "room": "413 - филиал в г.Ташкент",
-            "teacher": "Агзамов Ш.К.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "14:00-15:30",
-            "subject": "Эмоциональный интеллект",
-            "room": "510 - филиал в г.Ташкент",
-            "teacher": "Хасанова М.Б.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
-            "room": "405 - филиал в г.Ташкент",
-            "teacher": "Исмаилова Г.М.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Управление документационным обеспечением компании",
-            "room": "209 - филиал в г.Ташкент",
-            "teacher": "Мирзахалилова Д.М.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык (русский) 3",
-            "room": "412 - филиал в г.Ташкент",
-            "teacher": "Султанова Ю.Т.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык (английский) 2",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык (английский) 2",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "12:20-13:50",
-            "subject": "Физическая культура (по видам спорта) 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Абдурахманов Р.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Абдурахманов Р.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "12:20-13:50",
-            "subject": "Эмоциональный интеллект",
-            "room": "414 - филиал в г.Ташкент",
-            "teacher": "Мухамедов Ш.Б.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "10:10-11:40",
-            "subject": "Бизнес-аналитика",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Рахимов Н.А.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Бизнес-аналитика",
-            "room": "209 - филиал в г.Ташкент",
-            "teacher": "Рахимов Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Энергетическая безопасность",
-            "room": "411 - филиал в г.Ташкент",
-            "teacher": "Уралова М.И.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Экономика организаций",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Отто О.Э.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "8:30-10:00",
-            "subject": "Экономика организаций",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Отто О.Э.",
-            "lesson_type": "Лекция",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "8:30-10:00",
-            "subject": "Узбекский язык",
-            "room": "509 - филиал в г.Ташкент",
-            "teacher": "Матлатипова Н.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Иностранный язык",
-            "room": "510 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык",
-            "room": "513 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №1",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Физическая культура 3",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 5,
-            "time_slot": "14:00-15:30",
-            "subject": "Прием отчетов по практике",
-            "room": "210 - филиал в г.Ташкент",
-            "teacher": "Абдуллаева М.Б.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "14:00-15:30",
-            "subject": "Консультация",
-            "room": "515 - филиал в г.Ташкент",
-            "teacher": "Мухамедов Ш.Б.",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
-            "room": "Ауд. каф.",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
     "III курс|УРТ-24-01|9781": {
       "course": "III курс",
       "name": "УРТ-24-01",
@@ -6912,158 +5483,6 @@
             "room": "507 - филиал в г.Ташкент",
             "teacher": "",
             "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
-            "room": "101 - филиал в г.Ташкент",
-            "teacher": "",
-            "lesson_type": "Мероприятие",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          }
-        ]
-      }
-    },
-    "III курс|УРГ-24-07|9783": {
-      "course": "III курс",
-      "name": "УРГ-24-07",
-      "group_id": 9783,
-      "days": {
-        "10-09-2026": [
-          {
-            "weekday": 3,
-            "time_slot": "8:30-10:00",
-            "subject": "Иностранный язык (русский) 5",
-            "room": "508 - филиал в г.Ташкент",
-            "teacher": "Ахметова Г.Х.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "10:10-11:40",
-            "subject": "Течение жидкостей в пористых средах",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмедходжаева И.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "12:20-13:50",
-            "subject": "Компьютерные технологии в добыче нефти",
-            "room": "Лингафонный кабинет - филиал в г.Ташкент",
-            "teacher": "Евстафеев Е.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "10:10-11:40",
-            "subject": "Компьютерные технологии в добыче нефти",
-            "room": "Лингафонный кабинет - филиал в г.Ташкент",
-            "teacher": "Евстафеев Е.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "12:20-13:50",
-            "subject": "Иностранный язык (английский) 2",
-            "room": "512 - филиал в г.Ташкент",
-            "teacher": "Такташева Д.Р.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "8:30-10:00",
-            "subject": "Электротехника",
-            "room": "613 - филиал в г.Ташкент",
-            "teacher": "Хожимирзаев Ш.Ш.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 0,
-            "time_slot": "12:20-13:50",
-            "subject": "Физическая культура 5",
-            "room": "Спортзал - филиал в г.Ташкент",
-            "teacher": "Абдурахманов Р.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": true,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "12:20-13:50",
-            "subject": "Техническая механика",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмеджанов Ю.А.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 2,
-            "time_slot": "10:10-11:40",
-            "subject": "Техническая механика",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмеджанов Ю.А.",
-            "lesson_type": "Лабораторная работа",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 4,
-            "time_slot": "8:30-10:00",
-            "subject": "Разработка нефтяных месторождений",
-            "room": "407 - филиал в г.Ташкент",
-            "teacher": "Акрамов Б.Ш.",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 3,
-            "time_slot": "10:10-11:40",
-            "subject": "Экономика",
-            "room": "407 - филиал в г.Ташкент",
-            "teacher": "Сотрудник №3",
-            "lesson_type": "Семинар",
-            "week_parity": "all",
-            "isCancelled": false,
-            "isMoved": false
-          },
-          {
-            "weekday": 1,
-            "time_slot": "14:00-15:30",
-            "subject": "Консультация",
-            "room": "504 - филиал в г.Ташкент",
-            "teacher": "Ахмедходжаева И.А.",
-            "lesson_type": "Мероприятие",
             "week_parity": "all",
             "isCancelled": false,
             "isMoved": false
@@ -8237,6 +6656,2688 @@
             "week_parity": "all",
             "isCancelled": false,
             "isMoved": false
+          }
+        ]
+      }
+    },
+    "III курс|УРН-24-08|9783": {
+      "course": "III курс",
+      "name": "УРН-24-08",
+      "group_id": 9783,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "508 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Течение жидкостей в пористых средах",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмедходжаева Ифода",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Электротехника",
+            "room": "613 - филиал в г.Ташкент",
+            "teacher": "Хожимирзаев Шерзодбек",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Техническая механика",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Техническая механика",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Абдурахманов Руслан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Разработка нефтяных месторождений",
+            "room": "407 - филиал в г.Ташкент",
+            "teacher": "Акрамов Бахшилло",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Компьютерные технологии в добыче нефти",
+            "room": "Лингафонный кабинет - филиал в г.Ташкент",
+            "teacher": "Евстафеев Евгений",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Компьютерные технологии в добыче нефти",
+            "room": "Лингафонный кабинет - филиал в г.Ташкент",
+            "teacher": "Евстафеев Евгений",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (английский) 2",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика",
+            "room": "407 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмедходжаева Ифода",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "III курс|УТП-24-09|9879": {
+      "course": "III курс",
+      "name": "УТП-24-09",
+      "group_id": 9879,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Инклюзивная компетентность современного специалиста",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Усманова Азизахон",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "508 - филиал в г.Ташкент",
+            "teacher": "Рахманова Малика",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Основы проектирования трубопроводных систем",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Туляганов Шухрат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Прикладная механика",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Прикладная механика",
+            "room": "312 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Метрология, квалиметрия и стандартизация",
+            "room": "503 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Метрология, квалиметрия и стандартизация",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Метрология, квалиметрия и стандартизация",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Безопасность жизнедеятельности",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Мавлянкариев Бахтиёр",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Основы проектирования трубопроводных систем",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Слученкова Валерия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Прием отчетов по практике",
+            "room": "414 - филиал в г.Ташкент",
+            "teacher": "Шафиева Виолетта",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "501 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "III курс|УТС-24-10|9878": {
+      "course": "III курс",
+      "name": "УТС-24-10",
+      "group_id": 9878,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Инклюзивная компетентность современного специалиста",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Усманова Азизахон",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Экология",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Ганиева Сайера",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "507 - филиал в г.Ташкент",
+            "teacher": "Эгамназарова Зулхумор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "506 - филиал в г.Ташкент",
+            "teacher": "Эгамназарова Зулхумор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Трубопроводный транспорт нефти и газа",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Туляганов Шухрат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Прикладная механика",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Прикладная механика",
+            "room": "312 - филиал в г.Ташкент",
+            "teacher": "Ахмеджанов Юсуф",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Метрология, квалиметрия и стандартизация",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Метрология, квалиметрия и стандартизация",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Безопасность жизнедеятельности",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Мавлянкариев Бахтиёр",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Трубопроводный транспорт нефти и газа",
+            "room": "410 - филиал в г.Ташкент",
+            "teacher": "Слученкова Валерия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Экология",
+            "room": "605 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Прием отчетов по практике",
+            "room": "409 - филиал в г.Ташкент",
+            "teacher": "Исмаилова Гульназ",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Прием отчетов по практике",
+            "room": "409 - филиал в г.Ташкент",
+            "teacher": "Исмаилова Гульназ",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "501 - филиал в г.Ташкент",
+            "teacher": "Алимбабаева Зулхумор",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "III курс|УЭМ-24-11|9837": {
+      "course": "III курс",
+      "name": "УЭМ-24-11",
+      "group_id": 9837,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 0,
+            "time_slot": "14:00-15:30",
+            "subject": "Управление развитием бизнеса",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Аннамурадов Сухроб",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "508 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Финансово-экономический анализ деятельности энергетической компании",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Закиров Алимджан",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Финансово-экономический анализ деятельности энергетической компании",
+            "room": "202 - филиал в г.Ташкент",
+            "teacher": "Закиров Алимджан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Бухгалтерский учет 2",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "14:00-15:30",
+            "subject": "Бухгалтерский учет 2",
+            "room": "206 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "206 - филиал в г.Ташкент",
+            "teacher": "Шадиметов Илхом",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Нефтегазовое товароведение\"",
+            "room": "603 - филиал в г.Ташкент, 601 - филиал в г.Ташкент",
+            "teacher": "Исаматова Джамиля, Шарафутдинова Нозима",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика труда",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика труда",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Организация, нормирование и оплата труда",
+            "room": "310 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык 3",
+            "room": "510 - филиал в г.Ташкент, 513 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2, Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Маркетинг на энергетических рынках",
+            "room": "1-17 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №5",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Маркетинг на энергетических рынках",
+            "room": "102 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №6",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "1-17 - филиал в г.Ташкент",
+            "teacher": "Уралов Акбарали",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "III курс|УЭЭ-24-12|9838": {
+      "course": "III курс",
+      "name": "УЭЭ-24-12",
+      "group_id": 9838,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "507 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Бухгалтерский учет 2",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Бухгалтерский учет 2",
+            "room": "202 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Шадиметов Илхом",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "14:00-15:30",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Шадиметов Илхом",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Абдурахманов Руслан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Абдурахманов Руслан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "14:00-15:30",
+            "subject": "Анализ финансово-хозяйственной деятельности энергетической компании",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Соатов Эшназор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Анализ финансово-хозяйственной деятельности энергетической компании",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Соатов Эшназор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Анализ финансово-хозяйственной деятельности энергетической компании",
+            "room": "201 - филиал в г.Ташкент",
+            "teacher": "Соатов Эшназор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Нефтегазовое товароведение\"",
+            "room": "605 - филиал в г.Ташкент",
+            "teacher": "Шарафутдинова Нозима",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Организация, нормирование и оплата труда",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Организация, нормирование и оплата труда",
+            "room": "310 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык 3",
+            "room": "513 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Планирование и оптимизация бизнес-процессов",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "1-17 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "206 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Маркетинг на энергетических рынках",
+            "room": "102 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №6",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "III курс|УЭЭ-24-13|9905": {
+      "course": "III курс",
+      "name": "УЭЭ-24-13",
+      "group_id": 9905,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Бухгалтерский учет 2",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Бухгалтерский учет 2",
+            "room": "202 - филиал в г.Ташкент",
+            "teacher": "Исамухамедов Азиз",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Шадиметов Илхом",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "14:00-15:30",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Шадиметов Илхом",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура (по видам спорта) 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Исхакбаев Евгений",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура 5",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Исхакбаев Евгений",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 5",
+            "room": "506 - филиал в г.Ташкент",
+            "teacher": "Эгамназарова Зулхумор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Анализ финансово-хозяйственной деятельности энергетической компании",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "Соатов Эшназор",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Анализ финансово-хозяйственной деятельности энергетической компании",
+            "room": "201 - филиал в г.Ташкент",
+            "teacher": "Соатов Эшназор",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "14:00-15:30",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Нефтегазовое товароведение\"",
+            "room": "605 - филиал в г.Ташкент",
+            "teacher": "Шарафутдинова Нозима",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Организация, нормирование и оплата труда",
+            "room": "302 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Организация, нормирование и оплата труда",
+            "room": "310 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык 3",
+            "room": "511 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Планирование и оптимизация бизнес-процессов",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Налогообложение энергетического бизнеса 2",
+            "room": "1-13 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №4",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Маркетинг на энергетических рынках",
+            "room": "102 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №6",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика устойчивого развития энергетических компаний",
+            "room": "301 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratаylik!\" ",
+            "room": "101 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УРГ-25-06|10119": {
+      "course": "II курс",
+      "name": "УРГ-25-06",
+      "group_id": 10119,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "507 - филиал в г.Ташкент, 506 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль, Султанова Юлия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Узбекский язык",
+            "room": "515 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Узбекский язык",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Султанова Юлия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 2
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Функции многих переменных. Дифференциальные уравнения",
+            "room": "202 - филиал в г.Ташкент",
+            "teacher": "Усмонхожаев Зокирхожа",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Квантовая физика",
+            "room": "612 - филиал в г.Ташкент",
+            "teacher": "Насиров Тулкун",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Основы строительства нефтяных и газовых скважин",
+            "room": "1 (лаб) - филиал в г.Ташкент",
+            "teacher": "Нурматов Усан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Сопротивление материалов",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Сопротивление материалов",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Сопротивление материалов",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "14:00-15:30",
+            "subject": "Теоретическая механика 2",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Салямова Клара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык",
+            "room": "512 - филиал в г.Ташкент, 511 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара, Сотрудник №2",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Квантовая физика",
+            "room": "103 - филиал в г.Ташкент",
+            "teacher": "Курбанов Рахимкул",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Химия нефти и газа",
+            "room": "606 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Химия нефти и газа",
+            "room": "606 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Материаловедение",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Шукурджанов Жамшид",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 2
+          },
+          {
+            "weekday": 0,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "515 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "15:40-17:10",
+            "subject": "Консультация",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Ахмедов Мирзаанвар, Добычина Светлана, Олимжанов Сардорбек, Абдурахимов Саидрасул, Акрамов Бахшилло, Евстафеев Евгений",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "15:40-17:10",
+            "subject": "Консультация",
+            "room": "504 - филиал в г.Ташкент",
+            "teacher": "Ахмедов Мирзаанвар, Добычина Светлана, Олимжанов Сардорбек, Абдурахимов Саидрасул, Акрамов Бахшилло, Евстафеев Евгений",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УРН-25-07|10174": {
+      "course": "II курс",
+      "name": "УРН-25-07",
+      "group_id": 10174,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "506 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Узбекский язык",
+            "room": "409 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Физика пласта",
+            "room": "407 - филиал в г.Ташкент",
+            "teacher": "Добычина Светлана",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 2
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Функции многих переменных. Дифференциальные уравнения",
+            "room": "202 - филиал в г.Ташкент",
+            "teacher": "Усмонхожаев Зокирхожа",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "14:00-15:30",
+            "subject": "Функции многих переменных. Дифференциальные уравнения",
+            "room": "1-19 - филиал в г.Ташкент",
+            "teacher": "Усмонхожаев Зокирхожа",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Квантовая физика",
+            "room": "612 - филиал в г.Ташкент",
+            "teacher": "Насиров Тулкун",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "14:00-15:30",
+            "subject": "Сопротивление материалов",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Сопротивление материалов",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Теоретическая механика 2",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Салямова Клара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Квантовая физика",
+            "room": "103 - филиал в г.Ташкент",
+            "teacher": "Курбанов Рахимкул",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Квантовая физика",
+            "room": "610 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Химия нефти и газа",
+            "room": "605 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Химия нефти и газа",
+            "room": "606 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "15:40-17:10",
+            "subject": "Консультация",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Ахмедов Мирзаанвар, Добычина Светлана, Олимжанов Сардорбек, Абдурахимов Саидрасул, Акрамов Бахшилло, Евстафеев Евгений",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "15:40-17:10",
+            "subject": "Консультация",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Ахмедов Мирзаанвар, Добычина Светлана, Олимжанов Сардорбек, Абдурахимов Саидрасул, Акрамов Бахшилло, Евстафеев Евгений",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УТП-25-08|10176": {
+      "course": "II курс",
+      "name": "УТП-25-08",
+      "group_id": 10176,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Проектный менеджмент: базовый курс",
+            "room": "206 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "507 - филиал в г.Ташкент, 506 - филиал в г.Ташкент",
+            "teacher": "Ахметова Гузаль, Рахманова Малика",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Физика 3",
+            "room": "613 - филиал в г.Ташкент, 610 - филиал в г.Ташкент",
+            "teacher": "Хожимирзаев Шерзодбек, Фаттахов Абдулла",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Физика 3",
+            "room": "609 - филиал в г.Ташкент",
+            "teacher": "Хожимирзаев Шерзодбек",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Религиоведение",
+            "room": "515 - филиал в г.Ташкент",
+            "teacher": "Намазова Шоира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Физика 3",
+            "room": "613 - филиал в г.Ташкент",
+            "teacher": "Насиров Тулкун",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 2
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Сопротивление материалов",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 2
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Сопротивление материалов",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Рожкова Елена",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Теоретическая механика",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Салямова Клара",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Теоретическая механика",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Салямова Клара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Теоретическая механика",
+            "room": "505 - филиал в г.Ташкент",
+            "teacher": "Салямова Клара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык (английский)",
+            "room": "511 - филиал в г.Ташкент, 510 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №2, Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Основы экономических знаний",
+            "room": "206 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №3",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Математика 3",
+            "room": "307 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №5",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Физика 3",
+            "room": "610 - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 1
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УЭМ-25-09|10175": {
+      "course": "II курс",
+      "name": "УЭМ-25-09",
+      "group_id": 10175,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Общий менеджмент",
+            "room": "211 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
+            "room": "413 - филиал в г.Ташкент",
+            "teacher": "Агзамов Шавкат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Узбекский язык",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Узбекский язык",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Рахманова Малика",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Экономика организаций",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика организаций",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Профилированный иностранный язык",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Бизнес-аналитика",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Рахимов Нодиржон",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Бизнес-аналитика",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Рахимов Нодиржон",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Исмаилова Гульназ",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Управление документационным обеспечением компании",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Эмоциональный интеллект",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Мухамедов Шухрат",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Эмоциональный интеллект",
+            "room": "414 - филиал в г.Ташкент",
+            "teacher": "Мухамедов Шухрат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык",
+            "room": "510 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Эмоциональный интеллект",
+            "room": "413 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "515 - филиал в г.Ташкент",
+            "teacher": "Мухамедов Шухрат",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УЭЭ-25-10|10186": {
+      "course": "II курс",
+      "name": "УЭЭ-25-10",
+      "group_id": 10186,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Общий менеджмент",
+            "room": "211 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
+            "room": "413 - филиал в г.Ташкент",
+            "teacher": "Агзамов Шавкат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "8:30-10:00",
+            "subject": "Узбекский язык",
+            "room": "509 - филиал в г.Ташкент",
+            "teacher": "Матлатипова Назира",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Султанова Юлия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "14:00-15:30",
+            "subject": "Эмоциональный интеллект",
+            "room": "510 - филиал в г.Ташкент",
+            "teacher": "Хасанова Мавлюда",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Абдурахманов Руслан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Абдурахманов Руслан",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика организаций",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Экономика организаций",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык (английский) 2",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (английский) 2",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Бизнес-аналитика",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Рахимов Нодиржон",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Бизнес-аналитика",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Рахимов Нодиржон",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Энергетическая безопасность",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Уралова Матлюба",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Технологии и оборудование бизнес-сегмента \"Транспорт и хранение углеводородов\"",
+            "room": "405 - филиал в г.Ташкент",
+            "teacher": "Исмаилова Гульназ",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Управление документационным обеспечением компании",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Мирзахалилова Дамира",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Эмоциональный интеллект",
+            "room": "414 - филиал в г.Ташкент",
+            "teacher": "Мухамедов Шухрат",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык",
+            "room": "510 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Иностранный язык",
+            "room": "513 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "14:00-15:30",
+            "subject": "Прием отчетов по практике",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "14:00-15:30",
+            "subject": "Консультация",
+            "room": "515 - филиал в г.Ташкент",
+            "teacher": "Мухамедов Шухрат",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          }
+        ]
+      }
+    },
+    "II курс|УБМ-25-11|10207": {
+      "course": "II курс",
+      "name": "УБМ-25-11",
+      "group_id": 10207,
+      "days": {
+        "11-09-2026": [
+          {
+            "weekday": 1,
+            "time_slot": "12:20-13:50",
+            "subject": "Управленческие решения в деятельности организационно-экономических систем",
+            "room": "211 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (русский) 3",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Султанова Юлия",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "10:10-11:40",
+            "subject": "Математические методы и модели в системе управления",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Дилора",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "8:30-10:00",
+            "subject": "Математические методы и модели в системе управления",
+            "room": "412 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Дилора",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "12:20-13:50",
+            "subject": "Основы проектной деятельности",
+            "room": "201 - филиал в г.Ташкент",
+            "teacher": "Габдрахманов Ильдар",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "10:10-11:40",
+            "subject": "Экономика организаций энергетического комплекса",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Экономика организаций энергетического комплекса",
+            "room": "210 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "12:20-13:50",
+            "subject": "Экономика организаций энергетического комплекса",
+            "room": "211 - филиал в г.Ташкент",
+            "teacher": "Отто Ольга",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 5,
+            "time_slot": "10:10-11:40",
+            "subject": "Иностранный язык (английский) 3",
+            "room": "512 - филиал в г.Ташкент",
+            "teacher": "Такташева Динара",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "8:30-10:00",
+            "subject": "Переработка нефти и газа, производство товарных нефтегазопродуктов",
+            "room": "605 - филиал в г.Ташкент",
+            "teacher": "Шарафутдинова Нозима",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "8:30-10:00",
+            "subject": "Переработка нефти и газа, производство товарных нефтегазопродуктов",
+            "room": "601 - филиал в г.Ташкент",
+            "teacher": "Шарафутдинова Нозима",
+            "lesson_type": "Лабораторная работа",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 0,
+            "time_slot": "8:30-10:00",
+            "subject": "Физическая культура 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "12:20-13:50",
+            "subject": "Физическая культура (по видам спорта) 3",
+            "room": "Спортзал - филиал в г.Ташкент",
+            "teacher": "Скулкова Ирина",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Модели национальных инновационных систем",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Уралова Матлюба",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 2,
+            "time_slot": "10:10-11:40",
+            "subject": "Ключевые концепции современного менеджмента",
+            "room": "1-13 - филиал в г.Ташкент",
+            "teacher": "Юнусов Зохид",
+            "lesson_type": "Лекция",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "12:20-13:50",
+            "subject": "Основы бизнес-администрирования",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 1,
+            "time_slot": "8:30-10:00",
+            "subject": "Ключевые концепции современного менеджмента",
+            "room": "411 - филиал в г.Ташкент",
+            "teacher": "Сотрудник №1",
+            "lesson_type": "Семинар",
+            "week_parity": "all",
+            "isCancelled": true,
+            "subgroup": 0
+          },
+          {
+            "weekday": 3,
+            "time_slot": "14:00-15:30",
+            "subject": "Прием отчетов по практике",
+            "room": "209 - филиал в г.Ташкент",
+            "teacher": "Абдуллаева Мадина",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
+          },
+          {
+            "weekday": 4,
+            "time_slot": "10:10-11:40",
+            "subject": "Занятия \"Маърифат дарслари\" с участием НПР  и тьюторов \"Yagona Vatan, yagona xalq bo'lib, yangi hayot va kelajak  yaratiylik!\" ",
+            "room": "Ауд. каф.",
+            "teacher": "",
+            "lesson_type": "Мероприятие",
+            "week_parity": "all",
+            "isCancelled": false,
+            "subgroup": 0
           }
         ]
       }

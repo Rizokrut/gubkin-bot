@@ -186,9 +186,14 @@ def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
             continue
 
         extra = f"\n👤 {teacher}" if teacher else ""
+        try:
+            sub = int(lesson.get("subgroup") or 0)
+        except (TypeError, ValueError):
+            sub = 0
+        sub_line = f"\n👥 подгруппа {sub}" if sub in (1, 2) else ""
         blocks.append(
             f"<b>{i}. {time_slot}</b>\n"
-            f"{subject}\n"
+            f"{subject}{sub_line}\n"
             f"{type_line}  ·  {room}{extra}"
         )
 
