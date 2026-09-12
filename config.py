@@ -20,6 +20,9 @@ DB_PATH = os.getenv(
     "bot.db",
 )
 
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "").strip()
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "").strip()
+
 if not BOT_TOKEN:
     raise RuntimeError(
         "Не задан BOT_TOKEN. Задайте BOT_TOKEN "
