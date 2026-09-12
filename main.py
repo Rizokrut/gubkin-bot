@@ -62,8 +62,37 @@ class AdminBroadcast(StatesGroup):
     waiting_text = State()
 
 
+_extra_admins: set[int] = set()
+
+
 def is_admin(telegram_id: int) -> bool:
+    return telegram_id == ADMIN_ID or telegram_id in _extra_admins
+
+
+def is_owner(telegram_id: int) -> bool:
     return telegram_id == ADMIN_ID
+
+
+def _parse_admin_ids(raw: str | None) -> set[int]:
+    result: set[int] = set()
+    if not raw:
+        return result
+    for part in raw.replace(" ", ",").split(","):
+        part = part.strip()
+        if part.isdigit():
+            result.add(int(part))
+    return result
+
+
+async def load_extra_admins() -> None:
+    raw = await db.get_setting("extra_admins")
+    _extra_admins.clear()
+    _extra_admins.update(_parse_admin_ids(raw))
+
+
+async def save_extra_admins() -> None:
+    value = ",".join(str(i) for i in sorted(_extra_admins))
+    await db.set_setting("extra_admins", value)
 
 
 def split_long_message(text: str, max_len: int = MAX_MESSAGE_LEN) -> list[str]:
@@ -608,8 +637,66 @@ async def admin_help(message: Message) -> None:
         "/stats — сколько людей и в каких группах\n"
         "/broadcast — рассылка всем\n"
         "/update — обновить расписание из GitHub\n"
+        "/admins — список админов\n"
+        "/addadmin ID — выдать админку (только владелец)\n"
+        "/deladmin ID — забрать админку (только владелец)\n"
         "/admin — это меню"
     )
+
+
+@router.message(Command("admins"))
+async def list_admins(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await load_extra_admins()
+    lines = [f"Владелец: <code>{ADMIN_ID}</code>"]
+    if _extra_admins:
+        lines.append("Дополнительно:")
+        for aid in sorted(_extra_admins):
+            lines.append(f"· <code>{aid}</code>")
+    else:
+        lines.append("Дополнительных админов нет.")
+    await message.answer("\n".join(lines))
+
+
+@router.message(Command("addadmin"))
+async def add_admin_cmd(message: Message) -> None:
+    if not is_owner(message.from_user.id):
+        if is_admin(message.from_user.id):
+            await message.answer("Добавлять админов может только владелец.")
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer(
+            "Напиши так:\n<code>/addadmin 123456789</code>\n\n"
+            "ID человек берёт у @userinfobot."
+        )
+        return
+    new_id = int(parts[1])
+    if new_id == ADMIN_ID:
+        await message.answer("Это и так владелец.")
+        return
+    await load_extra_admins()
+    _extra_admins.add(new_id)
+    await save_extra_admins()
+    await message.answer(f"Админка выдана: <code>{new_id}</code>")
+
+
+@router.message(Command("deladmin"))
+async def del_admin_cmd(message: Message) -> None:
+    if not is_owner(message.from_user.id):
+        if is_admin(message.from_user.id):
+            await message.answer("Убирать админов может только владелец.")
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Напиши так:\n<code>/deladmin 123456789</code>")
+        return
+    old_id = int(parts[1])
+    await load_extra_admins()
+    _extra_admins.discard(old_id)
+    await save_extra_admins()
+    await message.answer(f"Админка снята: <code>{old_id}</code>")
 
 
 @router.message(Command("broadcast"))
@@ -745,6 +832,7 @@ async def run_health_server() -> None:
 async def main() -> None:
     logger.info("Starting Gubkin Bot")
     await db.init_db()
+    await load_extra_admins()
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher(storage=MemoryStorage())
