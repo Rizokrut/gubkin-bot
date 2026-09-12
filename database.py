@@ -1,18 +1,19 @@
 """
 База бота.
 
-Если заданы TURSO_DATABASE_URL и TURSO_AUTH_TOKEN — всё (люди, группы,
-расписание, настройки) живёт в Turso и переживает деплой Render.
-
-Если переменных нет — как раньше, локальный bot.db (после деплоя пустой).
+Turso: если заданы TURSO_DATABASE_URL и TURSO_AUTH_TOKEN.
+Иначе — локальный bot.db, как сейчас.
 """
 
 from __future__ import annotations
 
+import logging
+
 import aiosqlite
-from libsql_client import create_client
 
 from config import DB_PATH, TURSO_AUTH_TOKEN, TURSO_DATABASE_URL
+
+logger = logging.getLogger(__name__)
 
 _turso = None
 
@@ -24,6 +25,8 @@ def _use_turso() -> bool:
 def _client():
     global _turso
     if _turso is None:
+        from libsql_client import create_client
+
         _turso = create_client(
             url=TURSO_DATABASE_URL,
             auth_token=TURSO_AUTH_TOKEN,
@@ -31,38 +34,40 @@ def _client():
     return _turso
 
 
-def _rows_as_dicts(result) -> list[dict]:
-    cols = list(result.columns or [])
+class _RS:
+    def __init__(self, columns, rows):
+        self.columns = columns
+        self.rows = rows
+
+
+def _as_dicts(result) -> list[dict]:
+    if result is None:
+        return []
+    cols = list(getattr(result, "columns", None) or [])
+    raw_rows = list(getattr(result, "rows", None) or [])
     out = []
-    for row in result.rows or []:
-        out.append({cols[i]: row[i] for i in range(len(cols))})
+    for row in raw_rows:
+        if cols:
+            out.append({cols[i]: row[i] for i in range(min(len(cols), len(row)))})
+        else:
+            out.append(row)
     return out
 
 
 async def _exec(sql: str, args: tuple | list = ()):
     if _use_turso():
-        return await _client().execute(sql, list(args))
+        return await _client().execute(sql, list(args) if args else None)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(sql, args)
-        if sql.strip().upper().startswith("SELECT"):
-            rows = await cur.fetchall()
-
-            class _R:
-                columns = rows[0].keys() if rows else []
-                rows = [tuple(r) for r in rows]
-
-            if not rows:
-                class _Empty:
-                    columns = []
-                    rows = []
-
-                await db.commit()
-                return _Empty()
+        if sql.lstrip().upper().startswith("SELECT"):
+            fetched = await cur.fetchall()
+            cols = list(fetched[0].keys()) if fetched else []
+            rows = [tuple(r) for r in fetched]
             await db.commit()
-            return _R()
+            return _RS(cols, rows)
         await db.commit()
-        return None
+        return _RS([], [])
 
 
 async def _exec_many(sql: str, seq: list[tuple]) -> None:
@@ -79,7 +84,7 @@ async def _exec_many(sql: str, seq: list[tuple]) -> None:
 
 
 async def init_db() -> None:
-    stmts = [
+    for sql in (
         """
         CREATE TABLE IF NOT EXISTS users (
             telegram_id INTEGER PRIMARY KEY,
@@ -131,8 +136,7 @@ async def init_db() -> None:
             PRIMARY KEY (telegram_id, day, time_slot, subject)
         )
         """,
-    ]
-    for sql in stmts:
+    ):
         await _exec(sql)
     for stmt in (
         "ALTER TABLE users ADD COLUMN reminders_on INTEGER DEFAULT 1",
@@ -146,6 +150,7 @@ async def init_db() -> None:
             await _exec(stmt)
         except Exception:
             pass
+    logger.info("DB ready turso=%s", _use_turso())
 
 
 def _time_slot_to_minutes(time_slot: str) -> int:
@@ -161,7 +166,7 @@ def _time_slot_to_minutes(time_slot: str) -> int:
 
 async def get_user(telegram_id: int):
     res = await _exec("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
-    rows = _rows_as_dicts(res) if res else []
+    rows = _as_dicts(res)
     return rows[0] if rows else None
 
 
@@ -192,11 +197,13 @@ async def save_user(
 
 async def count_users() -> int:
     res = await _exec("SELECT COUNT(*) AS c FROM users")
-    rows = _rows_as_dicts(res) if res else []
+    rows = _as_dicts(res)
     if not rows:
         return 0
     row = rows[0]
-    return int(row.get("c") or row.get("COUNT(*)") or 0)
+    if isinstance(row, dict):
+        return int(row.get("c") or row.get("COUNT(*)") or 0)
+    return int(row[0])
 
 
 async def get_all_users() -> list[dict]:
@@ -206,7 +213,7 @@ async def get_all_users() -> list[dict]:
         "COALESCE(remind_minutes, 5) AS remind_minutes "
         "FROM users WHERE group_id IS NOT NULL"
     )
-    return _rows_as_dicts(res) if res else []
+    return _as_dicts(res)
 
 
 async def list_users_detailed() -> list[dict]:
@@ -214,18 +221,19 @@ async def list_users_detailed() -> list[dict]:
         "SELECT telegram_id, username, first_name, course, group_name "
         "FROM users ORDER BY course, group_name, telegram_id"
     )
-    return _rows_as_dicts(res) if res else []
+    return _as_dicts(res)
 
 
 async def users_by_course() -> list[tuple[str, int]]:
     res = await _exec(
         "SELECT course, COUNT(*) AS c FROM users GROUP BY course ORDER BY course"
     )
-    rows = _rows_as_dicts(res) if res else []
     out = []
-    for r in rows:
-        c = r.get("c", r.get("COUNT(*)"))
-        out.append((r.get("course"), int(c or 0)))
+    for r in _as_dicts(res):
+        if isinstance(r, dict):
+            out.append((r.get("course"), int(r.get("c") or r.get("COUNT(*)") or 0)))
+        else:
+            out.append((r[0], int(r[1])))
     return out
 
 
@@ -234,11 +242,18 @@ async def users_by_group() -> list[tuple[str, str, int]]:
         "SELECT course, group_name, COUNT(*) AS c FROM users "
         "GROUP BY course, group_name ORDER BY course, group_name"
     )
-    rows = _rows_as_dicts(res) if res else []
     out = []
-    for r in rows:
-        c = r.get("c", r.get("COUNT(*)"))
-        out.append((r.get("course"), r.get("group_name"), int(c or 0)))
+    for r in _as_dicts(res):
+        if isinstance(r, dict):
+            out.append(
+                (
+                    r.get("course"),
+                    r.get("group_name"),
+                    int(r.get("c") or r.get("COUNT(*)") or 0),
+                )
+            )
+        else:
+            out.append((r[0], r[1], int(r[2])))
     return out
 
 
@@ -250,8 +265,7 @@ async def reminder_was_sent(
         "AND time_slot = ? AND subject = ?",
         (telegram_id, day, time_slot, subject),
     )
-    rows = _rows_as_dicts(res) if res else []
-    return bool(rows)
+    return bool(_as_dicts(res))
 
 
 async def mark_reminder_sent(
@@ -269,8 +283,8 @@ async def mark_reminder_sent(
 
 async def get_courses() -> list[str]:
     res = await _exec("SELECT DISTINCT course FROM structure ORDER BY course")
-    rows = _rows_as_dicts(res) if res else []
-    return [r["course"] for r in rows]
+    rows = _as_dicts(res)
+    return [r["course"] if isinstance(r, dict) else r[0] for r in rows]
 
 
 async def get_groups(course: str) -> list[tuple[str, int]]:
@@ -278,8 +292,13 @@ async def get_groups(course: str) -> list[tuple[str, int]]:
         "SELECT group_name, group_id FROM structure WHERE course = ? ORDER BY group_name",
         (course,),
     )
-    rows = _rows_as_dicts(res) if res else []
-    return [(r["group_name"], r["group_id"]) for r in rows]
+    out = []
+    for r in _as_dicts(res):
+        if isinstance(r, dict):
+            out.append((r["group_name"], r["group_id"]))
+        else:
+            out.append((r[0], r[1]))
+    return out
 
 
 async def save_structure(rows: list[tuple[str, str, int]]) -> None:
@@ -291,7 +310,6 @@ async def save_structure(rows: list[tuple[str, str, int]]) -> None:
 
 
 async def save_schedule_for_group(group_id: int, lessons: list[dict]) -> None:
-    """Пишем только непустой набор. Пустой ответ старые пары не трогает."""
     if not lessons:
         return
     await _exec("DELETE FROM schedule WHERE group_id = ?", (group_id,))
@@ -323,7 +341,7 @@ async def get_schedule_for_day(group_id: int, weekday: int) -> list[dict]:
         "SELECT * FROM schedule WHERE group_id = ? AND weekday = ?",
         (group_id, weekday),
     )
-    result = _rows_as_dicts(res) if res else []
+    result = _as_dicts(res)
     result.sort(
         key=lambda r: (
             _time_slot_to_minutes(r.get("time_slot") or ""),
@@ -335,11 +353,10 @@ async def get_schedule_for_day(group_id: int, weekday: int) -> list[dict]:
 
 async def get_schedule_for_week(group_id: int) -> dict[int, list[dict]]:
     res = await _exec("SELECT * FROM schedule WHERE group_id = ?", (group_id,))
-    rows = _rows_as_dicts(res) if res else []
+    rows = _as_dicts(res)
     week: dict[int, list[dict]] = {i: [] for i in range(7)}
     for r in rows:
-        wd = int(r["weekday"])
-        week[wd].append(r)
+        week[int(r["weekday"])].append(r)
     for wd in range(7):
         week[wd].sort(
             key=lambda r: (
@@ -390,7 +407,8 @@ async def set_remind_minutes(telegram_id: int, minutes: int) -> None:
 
 async def get_setting(key: str) -> str | None:
     res = await _exec("SELECT value FROM settings WHERE key = ?", (key,))
-    rows = _rows_as_dicts(res) if res else []
+    rows = _as_dicts(res)
     if not rows:
         return None
-    return rows[0].get("value")
+    row = rows[0]
+    return row.get("value") if isinstance(row, dict) else row[0]
