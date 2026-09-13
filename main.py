@@ -178,9 +178,33 @@ def _lesson_sort_key(lesson: dict) -> tuple:
     return (minutes, cancelled)
 
 
-def format_day(group_name: str, weekday: int, lessons: list[dict]) -> str:
+def week_monday(now: datetime | None = None) -> datetime:
+    """Понедельник той недели, которую показываем.
+    В воскресенье это уже завтрашний понедельник, не прошедший."""
+    now = now or datetime.now(TZ)
+    if now.weekday() == 6:
+        return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+
+def date_for_weekday(weekday: int, now: datetime | None = None) -> datetime:
+    return week_monday(now) + timedelta(days=weekday)
+
+
+def format_day(
+    group_name: str,
+    weekday: int,
+    lessons: list[dict],
+    day_date: datetime | None = None,
+) -> str:
     day_name = WEEKDAY_NAMES_RU[weekday]
-    header = f"📅 <b>{day_name}</b>  ·  {group_name}\n"
+    if day_date is None:
+        day_date = date_for_weekday(weekday)
+    header = (
+        f"📅 <b>{day_name}</b>, {day_date.strftime('%d.%m')}  ·  {group_name}\n"
+    )
     if not lessons:
         return header + "\nПар нет — можно выдохнуть 🎉"
 
@@ -233,7 +257,10 @@ async def send_day_schedule(
     message: Message, group_name: str, group_id: int, weekday: int
 ) -> None:
     lessons = await db.get_schedule_for_day(group_id, weekday)
-    await send_long(message, format_day(group_name, weekday, lessons))
+    await send_long(
+        message,
+        format_day(group_name, weekday, lessons, date_for_weekday(weekday)),
+    )
 
 
 @router.message(CommandStart())
@@ -356,8 +383,13 @@ async def week_schedule(message: Message) -> None:
         await message.answer("Сначала выбери группу командой /start")
         return
     week = await db.get_schedule_for_week(user["group_id"])
+    monday = week_monday()
     for weekday in range(7):
-        await send_long(message, format_day(user["group_name"], weekday, week[weekday]))
+        day_date = monday + timedelta(days=weekday)
+        await send_long(
+            message,
+            format_day(user["group_name"], weekday, week[weekday], day_date),
+        )
         await asyncio.sleep(0.15)
 
 
