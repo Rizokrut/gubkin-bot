@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -16,6 +17,7 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    BufferedInputFile,
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -60,6 +62,10 @@ class Registration(StatesGroup):
 
 class AdminBroadcast(StatesGroup):
     waiting_text = State()
+
+
+class AdminImport(StatesGroup):
+    waiting_json = State()
 
 
 _extra_admins: set[int] = set()
@@ -672,6 +678,8 @@ async def admin_help(message: Message) -> None:
         "/admins — список админов\n"
         "/addadmin ID — выдать админку (только владелец)\n"
         "/deladmin ID — забрать админку (только владелец)\n"
+        "/exportusers — сохранить список людей перед деплоем\n"
+        "/importusers — вернуть список после деплоя\n"
         "/admin — это меню"
     )
 
@@ -729,6 +737,93 @@ async def del_admin_cmd(message: Message) -> None:
     _extra_admins.discard(old_id)
     await save_extra_admins()
     await message.answer(f"Админка снята: <code>{old_id}</code>")
+
+
+@router.message(Command("exportusers"))
+async def export_users_cmd(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    rows = await db.export_users()
+    payload = json.dumps(rows, ensure_ascii=False, indent=2)
+    data = payload.encode("utf-8")
+    await message.answer_document(
+        BufferedInputFile(data, filename="users_export.json"),
+        caption=f"Людей в базе: {len(rows)}\nСохрани файл. После деплоя — /importusers",
+    )
+
+
+@router.message(Command("importusers"))
+async def import_users_start(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await state.set_state(AdminImport.waiting_json)
+    await message.answer(
+        "Пришли файл <code>users_export.json</code> или вставь JSON текстом.\n"
+        "Отмена: /cancel"
+    )
+
+
+@router.message(AdminImport.waiting_json, Command("cancel"))
+async def import_users_cancel(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("Импорт отменён.")
+
+
+@router.message(AdminImport.waiting_json, F.document)
+async def import_users_file(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    bot = message.bot
+    file = await bot.download(message.document)
+    raw = file.read().decode("utf-8")
+    await _apply_import(message, state, raw)
+
+
+@router.message(AdminImport.waiting_json)
+async def import_users_text(message: Message, state: FSMContext) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    await _apply_import(message, state, message.text or "")
+
+
+async def _apply_import(message: Message, state: FSMContext, raw: str) -> None:
+    raw = (raw or "").strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        await message.answer("Это не JSON. Пришли файл от /exportusers.")
+        return
+    if not isinstance(data, list):
+        await message.answer("В корне должен быть список [...].")
+        return
+    ok = 0
+    skip = 0
+    for item in data:
+        if not isinstance(item, dict):
+            skip += 1
+            continue
+        try:
+            tid = int(item.get("telegram_id"))
+            gid = int(item.get("group_id"))
+        except (TypeError, ValueError):
+            skip += 1
+            continue
+        course = str(item.get("course") or "")
+        name = str(item.get("group_name") or "")
+        if not course or not name:
+            skip += 1
+            continue
+        await db.save_user(
+            tid,
+            course,
+            name,
+            gid,
+            username=item.get("username"),
+            first_name=item.get("first_name"),
+        )
+        ok += 1
+    await state.clear()
+    await message.answer(f"Готово. Вернул: {ok}. Пропустил: {skip}.")
 
 
 @router.message(Command("broadcast"))

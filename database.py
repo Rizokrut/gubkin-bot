@@ -411,6 +411,26 @@ async def list_users_detailed() -> list[dict]:
         return [dict(row) for row in rows]
 
 
+async def export_users() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT
+                telegram_id,
+                course,
+                group_name,
+                group_id,
+                username,
+                first_name
+            FROM users
+            WHERE group_id IS NOT NULL
+            ORDER BY course, group_name, telegram_id
+            """
+        )
+        return [dict(row) for row in await cursor.fetchall()]
+
+
 # ============================================================
 # СТАТИСТИКА
 # ============================================================
