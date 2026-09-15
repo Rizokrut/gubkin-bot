@@ -26,7 +26,13 @@ import keyboards as kb
 import groups_data
 import parser as site_parser
 from parser import ScheduleAuthError, ScheduleFormatError
-from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL, GOSSIP_CHANNEL_ID, GOSSIP_CHANNEL_URL
+from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL
+
+try:
+    from config import GOSSIP_CHANNEL_ID, GOSSIP_CHANNEL_URL
+except ImportError:
+    GOSSIP_CHANNEL_ID = "-1002667144030"
+    GOSSIP_CHANNEL_URL = "https://t.me/+X2EP9WhNon85YTAy"
 
 logging.basicConfig(
     level=logging.INFO,
