@@ -26,7 +26,7 @@ import keyboards as kb
 import groups_data
 import parser as site_parser
 from parser import ScheduleAuthError, ScheduleFormatError
-from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL
+from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL, GOSSIP_CHANNEL_ID, GOSSIP_CHANNEL_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -179,7 +179,7 @@ def _is_cancelled_flag(value) -> bool:
 
 
 def _lesson_sort_key(lesson: dict) -> tuple:
-    minutes = db._time_slot_to_minutes(lesson.get("time_slot") or "")
+    minutes = db._time_slot_to_minutes(site_parser.remap_slot(lesson.get("time_slot") or ""))
     cancelled = 1 if _is_cancelled_flag(lesson.get("is_cancelled")) else 0
     return (minutes, cancelled)
 
@@ -231,7 +231,7 @@ def format_day(
         subject = (lesson.get("subject") or "Занятие").strip()
         ltype = (lesson.get("lesson_type") or "").strip()
         icon = TYPE_ICON.get(ltype.lower(), "📘")
-        time_slot = lesson.get("time_slot") or "—"
+        time_slot = site_parser.remap_slot(lesson.get("time_slot") or "") or "—"
         room = _pretty_room(lesson.get("room") or "")
         teacher = (lesson.get("teacher") or "").strip()
         type_line = f"{icon} {ltype}" if ltype else icon
@@ -269,8 +269,48 @@ async def send_day_schedule(
     )
 
 
+
+def _gossip_chat_id():
+    raw = str(GOSSIP_CHANNEL_ID or "").strip()
+    if raw.startswith("-") and raw[1:].isdigit():
+        return int(raw)
+    if raw.isdigit():
+        return int(raw)
+    return raw
+
+
+async def require_gossip_sub(event) -> bool:
+    user = event.from_user
+    if not user:
+        return False
+    if user.id == ADMIN_ID:
+        return True
+    try:
+        member = await event.bot.get_chat_member(_gossip_chat_id(), user.id)
+        if member.status in ("member", "administrator", "creator", "restricted"):
+            return True
+    except Exception:
+        logger.exception("gossip sub check")
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Подписаться на канал", url=GOSSIP_CHANNEL_URL)],
+            [InlineKeyboardButton(text="Проверить подписку", callback_data="gossip:chk")],
+        ]
+    )
+    text = "Чтобы пользоваться расписанием, подпишись на канал."
+    if hasattr(event, "answer") and getattr(event, "message", None) is None:
+        await event.answer(text, reply_markup=kb)
+    elif hasattr(event, "message") and event.message:
+        await event.message.answer(text, reply_markup=kb)
+        if hasattr(event, "answer"):
+            await event.answer()
+    return False
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
+    if not await require_gossip_sub(message):
+        return
     user = await db.get_user(message.from_user.id)
     if user and user.get("group_id"):
         await message.answer(
@@ -361,8 +401,20 @@ async def change_group(message: Message, state: FSMContext) -> None:
     )
 
 
+
+@router.callback_query(F.data == "gossip:chk")
+async def gossip_chk(callback: CallbackQuery) -> None:
+    if await require_gossip_sub(callback):
+        await callback.message.answer("Подписка есть. Жми /start", reply_markup=kb.main_menu_keyboard())
+        await callback.answer("Ок")
+        return
+    await callback.answer("Ещё не подписан", show_alert=True)
+
+
 @router.message(F.text.in_({"📅 Сегодня", "📅 На сегодня"}))
 async def today_schedule(message: Message) -> None:
+    if not await require_gossip_sub(message):
+        return
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
         await message.answer("Сначала выбери группу командой /start")
@@ -374,6 +426,8 @@ async def today_schedule(message: Message) -> None:
 
 @router.message(F.text.in_({"🌅 Завтра", "📆 На завтра"}))
 async def tomorrow_schedule(message: Message) -> None:
+    if not await require_gossip_sub(message):
+        return
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
         await message.answer("Сначала выбери группу командой /start")
@@ -384,6 +438,8 @@ async def tomorrow_schedule(message: Message) -> None:
 
 @router.message(F.text.in_({"🗓 Неделя", "🗓 На неделю"}))
 async def week_schedule(message: Message) -> None:
+    if not await require_gossip_sub(message):
+        return
     user = await db.get_user(message.from_user.id)
     if not user or not user.get("group_id"):
         await message.answer("Сначала выбери группу командой /start")
@@ -899,11 +955,11 @@ async def send_pair_reminders(bot: Bot) -> None:
         for lesson in lessons:
             if lesson.get("is_cancelled") in (1, "1", True):
                 continue
-            start = _lesson_start_minutes(lesson.get("time_slot") or "")
+            slot = site_parser.remap_slot(lesson.get("time_slot") or "")
+            start = _lesson_start_minutes(slot)
             if start is None:
                 continue
             subject = (lesson.get("subject") or "Пара").strip()
-            slot = lesson.get("time_slot") or ""
             room = _pretty_room(lesson.get("room") or "")
             teacher = (lesson.get("teacher") or "").strip()
             ltype = (lesson.get("lesson_type") or "").strip()

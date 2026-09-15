@@ -134,15 +134,29 @@ def _subject_name(lesson: dict) -> str:
     return ""
 
 
+SLOT_MAP = {
+    "8:30-10:00": "8:00-9:30",
+    "08:30-10:00": "8:00-9:30",
+    "10:10-11:40": "9:40-11:10",
+    "12:20-13:50": "11:50-13:20",
+    "14:00-15:30": "13:30-15:00",
+    "15:40-17:10": "15:10-16:40",
+}
+
+
+def remap_slot(slot: str | None) -> str:
+    raw = (slot or "").replace(" ", "")
+    return SLOT_MAP.get(raw, slot or "")
+
+
 def _time_slot(lesson: dict) -> str:
     slot = _norm_text(lesson.get("time_slot"))
-    if slot:
-        return slot
-    start = _norm_text(lesson.get("start") or lesson.get("timeStart"))
-    end = _norm_text(lesson.get("end") or lesson.get("timeEnd"))
-    if start and end:
-        return f"{start}-{end}"
-    return ""
+    if not slot:
+        start = _norm_text(lesson.get("start") or lesson.get("timeStart"))
+        end = _norm_text(lesson.get("end") or lesson.get("timeEnd"))
+        if start and end:
+            slot = f"{start}-{end}"
+    return remap_slot(slot)
 
 
 def _weekday(lesson: dict) -> int | None:
