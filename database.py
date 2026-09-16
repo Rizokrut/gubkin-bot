@@ -376,7 +376,11 @@ async def get_all_users() -> list[dict]:
                 first_name,
                 created_at
             FROM users
-            ORDER BY created_at, telegram_id
+            ORDER BY
+                COALESCE(course, 'яяя'),
+                COALESCE(group_name, 'яяя'),
+                created_at ASC,
+                telegram_id ASC
             """
         )
 
@@ -386,6 +390,8 @@ async def get_all_users() -> list[dict]:
 
 
 async def list_users_detailed() -> list[dict]:
+    """Все пользователи, сгруппированно по курсу/группе.
+    Новые (по created_at) — внизу своей группы."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 
@@ -402,13 +408,64 @@ async def list_users_detailed() -> list[dict]:
                 first_name,
                 created_at
             FROM users
-            ORDER BY course, group_name, telegram_id
+            ORDER BY
+                COALESCE(course, 'яяя'),
+                COALESCE(group_name, 'яяя'),
+                created_at ASC,
+                telegram_id ASC
             """
         )
 
         rows = await cursor.fetchall()
 
         return [dict(row) for row in rows]
+
+
+async def list_users_by_course(course: str) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT
+                telegram_id,
+                course,
+                group_name,
+                group_id,
+                username,
+                first_name,
+                created_at
+            FROM users
+            WHERE course = ?
+            ORDER BY
+                COALESCE(group_name, 'яяя'),
+                created_at ASC,
+                telegram_id ASC
+            """,
+            (course,),
+        )
+        return [dict(row) for row in await cursor.fetchall()]
+
+
+async def list_users_by_group(course: str, group_name: str) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT
+                telegram_id,
+                course,
+                group_name,
+                group_id,
+                username,
+                first_name,
+                created_at
+            FROM users
+            WHERE course = ? AND group_name = ?
+            ORDER BY created_at ASC, telegram_id ASC
+            """,
+            (course, group_name),
+        )
+        return [dict(row) for row in await cursor.fetchall()]
 
 
 async def export_users() -> list[dict]:
@@ -425,7 +482,10 @@ async def export_users() -> list[dict]:
                 first_name
             FROM users
             WHERE group_id IS NOT NULL
-            ORDER BY course, group_name, telegram_id
+            ORDER BY
+                COALESCE(course, 'яяя'),
+                COALESCE(group_name, 'яяя'),
+                telegram_id ASC
             """
         )
         return [dict(row) for row in await cursor.fetchall()]

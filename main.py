@@ -473,6 +473,12 @@ async def site_link(message: Message) -> None:
 
 @router.message(F.text.in_({"💬 Админ", "Связь с админом"}))
 async def contact_admin(message: Message) -> None:
+    if is_admin(message.from_user.id):
+        await message.answer(
+            "<b>Админ-панель</b>\n\nВыбери действие:",
+            reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(message.from_user.id)),
+        )
+        return
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Написать админу", url=ADMIN_URL)]
@@ -696,36 +702,389 @@ async def run_update(status_message: Message | None = None) -> str:
     )
 
 
+# ============================================================
+# АДМИН-ПАНЕЛЬ (кнопки + совместимость со старыми /командами)
+# ============================================================
+
+def _format_user_line(p: dict) -> str:
+    name = (p.get("first_name") or "").strip() or "без имени"
+    username = (p.get("username") or "").strip()
+    uid = p.get("telegram_id")
+    link = f'<a href="tg://user?id={uid}">{name}</a>'
+    nick = f" @{username}" if username else ""
+    return f"· {link}{nick} <code>{uid}</code>"
+
+
+def _format_users_grouped(people: list[dict]) -> str:
+    """Красивый список: курс → группа → люди (новые внизу)."""
+    if not people:
+        return "Пользователей нет."
+
+    lines: list[str] = []
+    current_course = object()
+    current_group = object()
+
+    for p in people:
+        course = p.get("course") or "Без курса"
+        group = p.get("group_name") or "Без группы"
+        if course != current_course:
+            current_course = course
+            current_group = object()
+            lines.append("")
+            lines.append(f"<b>📚 {course}</b>")
+        if group != current_group:
+            current_group = group
+            lines.append(f"\n<b>  {group}</b>")
+        lines.append("  " + _format_user_line(p))
+
+    return "\n".join(lines).strip()
+
+
+async def _stats_summary_text() -> str:
+    count = await db.count_users()
+    by_course = await db.users_by_course()
+    lines = [
+        "<b>📊 Статистика</b>",
+        "",
+        f"Всего пользователей: <b>{count}</b>",
+        "",
+    ]
+    if by_course:
+        lines.append("<b>По курсам</b>")
+        for course, n in by_course:
+            lines.append(f"· {course}: <b>{n}</b>")
+    else:
+        lines.append("Пока никого нет.")
+    lines.append("")
+    lines.append("Выбери, что посмотреть подробнее:")
+    return "\n".join(lines)
+
+
+@router.callback_query(F.data == "adm:close")
+async def adm_close(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    try:
+        await callback.message.delete()
+    except Exception:
+        await callback.message.edit_text("Панель закрыта.")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:panel")
+async def adm_panel(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await callback.message.edit_text(
+        "<b>Админ-панель</b>\n\nВыбери действие:",
+        reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(callback.from_user.id)),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:stats")
+async def adm_stats_root(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    text = await _stats_summary_text()
+    await callback.message.edit_text(text, reply_markup=kb.admin_stats_root_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:stats:courses")
+async def adm_stats_courses(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    by_course = await db.users_by_course()
+    if not by_course:
+        await callback.message.edit_text(
+            "Курсов пока нет.",
+            reply_markup=kb.admin_back_keyboard("adm:stats"),
+        )
+        await callback.answer()
+        return
+    lines = ["<b>📚 По курсам</b>", ""]
+    for course, n in by_course:
+        lines.append(f"· {course}: <b>{n}</b>")
+    lines.append("")
+    lines.append("Нажми на курс, чтобы увидеть группы и людей:")
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=kb.admin_stats_courses_keyboard(by_course),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:stats:c:"))
+async def adm_stats_course_detail(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    raw = callback.data.split(":", 3)[-1]
+    # Восстанавливаем имя курса (мы заменяли : на _)
+    by_course = await db.users_by_course()
+    course = None
+    for c, _ in by_course:
+        if c.replace(":", "_")[:40] == raw:
+            course = c
+            break
+    if course is None:
+        await callback.answer("Курс не найден", show_alert=True)
+        return
+
+    by_group = await db.users_by_group()
+    groups_here = [(c, g, n) for c, g, n in by_group if c == course]
+    people = await db.list_users_by_course(course)
+
+    lines = [f"<b>📚 {course}</b>", f"Всего: <b>{len(people)}</b>", ""]
+    if groups_here:
+        lines.append("<b>Группы</b>")
+        for _, g, n in groups_here:
+            lines.append(f"· {g}: {n}")
+        lines.append("")
+    if people:
+        lines.append("<b>Люди</b> (новые внизу)")
+        current_group = object()
+        for p in people:
+            g = p.get("group_name") or "—"
+            if g != current_group:
+                current_group = g
+                lines.append(f"\n<i>{g}</i>")
+            lines.append(_format_user_line(p))
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=kb.admin_stats_groups_keyboard(groups_here, course_filter=course),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:stats:groups")
+async def adm_stats_groups(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    by_group = await db.users_by_group()
+    if not by_group:
+        await callback.message.edit_text(
+            "Групп пока нет.",
+            reply_markup=kb.admin_back_keyboard("adm:stats"),
+        )
+        await callback.answer()
+        return
+    lines = ["<b>👥 По группам</b>", ""]
+    current_course = object()
+    for course, group_name, n in by_group:
+        if course != current_course:
+            current_course = course
+            lines.append(f"\n<b>{course}</b>")
+        lines.append(f"· {group_name}: <b>{n}</b>")
+    lines.append("")
+    lines.append("Нажми на группу, чтобы увидеть список:")
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=kb.admin_stats_groups_keyboard(by_group),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:stats:g:"))
+async def adm_stats_group_detail(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    key = callback.data.split(":", 3)[-1]
+    if "|" not in key:
+        await callback.answer("Ошибка данных", show_alert=True)
+        return
+    course_part, group_part = key.split("|", 1)
+
+    by_group = await db.users_by_group()
+    matched = None
+    for c, g, n in by_group:
+        c_key = c[:15] if len(f"{c}|{g}".encode()) > 40 else c
+        g_key = g[:20] if len(f"{c}|{g}".encode()) > 40 else g
+        if (c == course_part and g == group_part) or (
+            c_key == course_part and g_key == group_part
+        ):
+            matched = (c, g, n)
+            break
+        # fallback: startswith
+        if c.startswith(course_part) and g.startswith(group_part):
+            matched = (c, g, n)
+            break
+
+    if not matched:
+        await callback.answer("Группа не найдена", show_alert=True)
+        return
+
+    course, group_name, count = matched
+    people = await db.list_users_by_group(course, group_name)
+    lines = [
+        f"<b>{group_name}</b>",
+        f"Курс: {course}",
+        f"Людей: <b>{count}</b>",
+        "",
+        "<b>Список</b> (новые внизу)",
+        "",
+    ]
+    for p in people:
+        lines.append(_format_user_line(p))
+    if not people:
+        lines.append("Пусто.")
+
+    text = "\n".join(lines)
+    # Если слишком длинно — отправим новым сообщением
+    if len(text) > 3500:
+        await callback.message.edit_text(
+            f"<b>{group_name}</b> · {count} чел.\nСписок ниже 👇",
+            reply_markup=kb.admin_back_keyboard("adm:stats:groups"),
+        )
+        await send_long(callback.message, text)
+    else:
+        await callback.message.edit_text(
+            text,
+            reply_markup=kb.admin_back_keyboard("adm:stats:groups"),
+        )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:stats:all")
+async def adm_stats_all(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    people = await db.list_users_detailed()
+    count = len(people)
+    await callback.message.edit_text(
+        f"<b>📋 Все пользователи</b>\nВсего: <b>{count}</b>\n\nСписок ниже 👇",
+        reply_markup=kb.admin_back_keyboard("adm:stats"),
+    )
+    await callback.answer()
+    text = _format_users_grouped(people)
+    await send_long(callback.message, text)
+
+
+@router.callback_query(F.data == "adm:update")
+async def adm_update(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await callback.answer()
+    status = await callback.message.answer("⏳ <b>Обновляю расписание...</b>\n\nПодготовка...")
+    result = await run_update(status)
+    try:
+        await status.edit_text(result)
+    except Exception:
+        logger.exception("Не удалось изменить итоговое сообщение")
+
+
+@router.callback_query(F.data == "adm:broadcast")
+async def adm_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await state.set_state(AdminBroadcast.waiting_text)
+    await callback.message.edit_text(
+        "Напиши текст рассылки одним сообщением.\n"
+        "Можно HTML: <code>&lt;b&gt;жирный&lt;/b&gt;</code>\n\n"
+        "Отмена: /cancel",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:admins")
+async def adm_admins_list(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await load_extra_admins()
+    lines = ["<b>👥 Админы</b>", "", f"Владелец: <code>{ADMIN_ID}</code>"]
+    if _extra_admins:
+        lines.append("")
+        lines.append("Дополнительно:")
+        for aid in sorted(_extra_admins):
+            lines.append(f"· <code>{aid}</code>")
+    else:
+        lines.append("")
+        lines.append("Дополнительных админов нет.")
+    if is_owner(callback.from_user.id):
+        lines.append("")
+        lines.append("Добавить/убрать — кнопки в панели или /addadmin /deladmin")
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:export")
+async def adm_export(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await callback.answer("Готовлю файл…")
+    rows = await db.export_users()
+    payload = json.dumps(rows, ensure_ascii=False, indent=2)
+    data = payload.encode("utf-8")
+    await callback.message.answer_document(
+        BufferedInputFile(data, filename="users_export.json"),
+        caption=f"Людей в базе: {len(rows)}\nСохрани файл. После деплоя — импорт.",
+    )
+
+
+@router.callback_query(F.data == "adm:import")
+async def adm_import(callback: CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await state.set_state(AdminImport.waiting_json)
+    await callback.message.edit_text(
+        "Пришли файл <code>users_export.json</code> или вставь JSON текстом.\n"
+        "Отмена: /cancel",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:addadmin")
+async def adm_addadmin_prompt(callback: CallbackQuery) -> None:
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Только владелец", show_alert=True)
+        return
+    await callback.message.edit_text(
+        "Напиши команду:\n<code>/addadmin 123456789</code>\n\n"
+        "ID можно взять у @userinfobot.",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:deladmin")
+async def adm_deladmin_prompt(callback: CallbackQuery) -> None:
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Только владелец", show_alert=True)
+        return
+    await callback.message.edit_text(
+        "Напиши команду:\n<code>/deladmin 123456789</code>",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+# --- Старые /команды (совместимость) ---
+
 @router.message(Command("stats"))
 async def stats(message: Message) -> None:
     if not is_admin(message.from_user.id):
         return
-    count = await db.count_users()
-    by_course = await db.users_by_course()
-    by_group = await db.users_by_group()
-    lines = [f"<b>Пользователей:</b> {count}", ""]
-    if by_course:
-        lines.append("<b>По курсам</b>")
-        for course, n in by_course:
-            lines.append(f"· {course}: {n}")
-        lines.append("")
-    if by_group:
-        lines.append("<b>По группам</b>")
-        for course, group_name, n in by_group:
-            lines.append(f"· {group_name} ({course}): {n}")
-    people = await db.list_users_detailed()
-    if people:
-        lines.append("")
-        lines.append("<b>Кто это</b>")
-        for p in people:
-            name = (p.get("first_name") or "").strip() or "без имени"
-            username = (p.get("username") or "").strip()
-            uid = p.get("telegram_id")
-            group = p.get("group_name") or "—"
-            link = f'<a href="tg://user?id={uid}">{name}</a>'
-            nick = f" @{username}" if username else ""
-            lines.append(f"· {link}{nick} — {group}")
-    await send_long(message, "\n".join(lines))
+    text = await _stats_summary_text()
+    await message.answer(text, reply_markup=kb.admin_stats_root_keyboard())
 
 
 @router.message(Command("admin"))
@@ -733,16 +1092,8 @@ async def admin_help(message: Message) -> None:
     if not is_admin(message.from_user.id):
         return
     await message.answer(
-        "<b>Админ-команды</b>\n\n"
-        "/stats — сколько людей и в каких группах\n"
-        "/broadcast — рассылка всем\n"
-        "/update — обновить расписание из GitHub\n"
-        "/admins — список админов\n"
-        "/addadmin ID — выдать админку (только владелец)\n"
-        "/deladmin ID — забрать админку (только владелец)\n"
-        "/exportusers — сохранить список людей перед деплоем\n"
-        "/importusers — вернуть список после деплоя\n"
-        "/admin — это меню"
+        "<b>Админ-панель</b>\n\nВыбери действие:",
+        reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(message.from_user.id)),
     )
 
 
