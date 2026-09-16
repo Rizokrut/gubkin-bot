@@ -1,8 +1,12 @@
 import asyncio
-import json
+import html
 import logging
 import os
-from datetime import datetime, timedelta
+import re
+import time
+import tempfile
+from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from aiohttp import web
@@ -13,271 +17,34 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
-    Message,
     CallbackQuery,
-    InlineKeyboardMarkup,
+    FSInputFile,
     InlineKeyboardButton,
-    BufferedInputFile,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
 )
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database as db
-import keyboards as kb
-import groups_data
-import parser as site_parser
-from parser import ScheduleAuthError, ScheduleFormatError
-from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL
-
-try:
-    from config import GOSSIP_CHANNEL_ID, GOSSIP_CHANNEL_URL
-except ImportError:
-    GOSSIP_CHANNEL_ID = "-1002667144030"
-    GOSSIP_CHANNEL_URL = "https://t.me/+X2EP9WhNon85YTAy"
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-logger = logging.getLogger(__name__)
-
-router = Router()
-
-WEEKDAY_NAMES_RU = [
-    "Понедельник",
-    "Вторник",
-    "Среда",
-    "Четверг",
-    "Пятница",
-    "Суббота",
-    "Воскресенье",
-]
-
-UPDATE_CONCURRENCY = 6
-PER_GROUP_TIMEOUT = 25
-MAX_MESSAGE_LEN = 3500
-
+from config import ADMIN_ID, BOT_TOKEN, CHANNEL_ID, CHANNEL_URL
 
 TZ = ZoneInfo("Asia/Tashkent")
-REMIND_MINUTES = 5
+NIGHT_START = 2   # 02:00
+NIGHT_END = 7     # 07:00
+NIGHT_COOLDOWN_SEC = 30 * 60  # 30 минут в ночном режиме
+NICK_MIN = 2
+NICK_MAX = 20
+NICK_CHANGE_COOLDOWN_SEC = 24 * 3600  # ник раз в сутки
+
+# варианты кулдауна (минуты)
+COOLDOWN_OPTIONS = (1, 5, 10, 15, 20)
+# варианты ручного мута (минуты); 0 = навсегда (до снятия)
+MUTE_OPTIONS = (5, 15, 30, 60, 180, 0)
 
 
-class Registration(StatesGroup):
-    choosing_course = State()
-    choosing_group = State()
-
-
-class AdminBroadcast(StatesGroup):
-    waiting_text = State()
-
-
-class AdminImport(StatesGroup):
-    waiting_json = State()
-
-
-_extra_admins: set[int] = set()
-
-
-def is_admin(telegram_id: int) -> bool:
-    return telegram_id == ADMIN_ID or telegram_id in _extra_admins
-
-
-def is_owner(telegram_id: int) -> bool:
-    return telegram_id == ADMIN_ID
-
-
-def _parse_admin_ids(raw: str | None) -> set[int]:
-    result: set[int] = set()
-    if not raw:
-        return result
-    for part in raw.replace(" ", ",").split(","):
-        part = part.strip()
-        if part.isdigit():
-            result.add(int(part))
-    return result
-
-
-async def load_extra_admins() -> None:
-    raw = await db.get_setting("extra_admins")
-    _extra_admins.clear()
-    _extra_admins.update(_parse_admin_ids(raw))
-
-
-async def save_extra_admins() -> None:
-    value = ",".join(str(i) for i in sorted(_extra_admins))
-    await db.set_setting("extra_admins", value)
-
-
-def split_long_message(text: str, max_len: int = MAX_MESSAGE_LEN) -> list[str]:
-    if len(text) <= max_len:
-        return [text]
-
-    chunks: list[str] = []
-    current = ""
-    for line in text.split("\n"):
-        candidate = f"{current}\n{line}" if current else line
-        if len(candidate) > max_len:
-            if current:
-                chunks.append(current)
-            if len(line) > max_len:
-                for i in range(0, len(line), max_len):
-                    chunks.append(line[i : i + max_len])
-                current = ""
-            else:
-                current = line
-        else:
-            current = candidate
-    if current:
-        chunks.append(current)
-    return chunks
-
-
-async def send_long(message: Message, text: str) -> None:
-    for chunk in split_long_message(text):
-        try:
-            await message.answer(chunk)
-        except Exception:
-            logger.exception("Не удалось отправить часть сообщения")
-        await asyncio.sleep(0.05)
-
-
-TYPE_ICON = {
-    "лекция": "📖",
-    "семинар": "💬",
-    "лабораторная работа": "🔬",
-    "лабораторная": "🔬",
-    "мероприятие": "📌",
-    "практика": "🛠",
-}
-
-
-def _short_room(room: str) -> str:
-    text = (room or "").strip()
-    for junk in (" - филиал в г.Ташкент", " — филиал в г.Ташкент", " филиал в г.Ташкент"):
-        text = text.replace(junk, "")
-    return text.strip(" -—") or "—"
-
-
-def _pretty_room(room: str) -> str:
-    text = _short_room(room)
-    pairs = (
-        ("Ауд. каф.", "Аудитория кафедры"),
-        ("ауд. каф.", "аудитория кафедры"),
-        ("Ауд.", "Аудитория "),
-        ("ауд.", "аудитория "),
-        ("Каб.", "Кабинет "),
-        ("каб.", "кабинет "),
-        ("каф.", "кафедры "),
-    )
-    for src, dst in pairs:
-        text = text.replace(src, dst)
-    text = " ".join(text.split())
-    low = text.lower()
-    if any(
-        word in low
-        for word in ("аудитор", "кабинет", "спортзал", "лингфон", "лаборатор")
-    ):
-        return text
-    return f"кабинет {text}"
-
-
-def _is_cancelled_flag(value) -> bool:
-    return value in (1, "1", True, "true", "True")
-
-
-def _lesson_sort_key(lesson: dict) -> tuple:
-    minutes = db._time_slot_to_minutes(site_parser.remap_slot(lesson.get("time_slot") or ""))
-    cancelled = 1 if _is_cancelled_flag(lesson.get("is_cancelled")) else 0
-    return (minutes, cancelled)
-
-
-def week_monday(now: datetime | None = None) -> datetime:
-    """Понедельник той недели, которую показываем.
-    В воскресенье это уже завтрашний понедельник, не прошедший."""
-    now = now or datetime.now(TZ)
-    if now.weekday() == 6:
-        return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    return (now - timedelta(days=now.weekday())).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-
-
-def date_for_weekday(weekday: int, now: datetime | None = None) -> datetime:
-    return week_monday(now) + timedelta(days=weekday)
-
-
-def format_day(
-    group_name: str,
-    weekday: int,
-    lessons: list[dict],
-    day_date: datetime | None = None,
-) -> str:
-    day_name = WEEKDAY_NAMES_RU[weekday]
-    if day_date is None:
-        day_date = date_for_weekday(weekday)
-    header = (
-        f"📅 <b>{day_name}</b>, {day_date.strftime('%d.%m')}  ·  {group_name}\n"
-    )
-    if not lessons:
-        return header + "\nПар нет — можно выдохнуть 🎉"
-
-    lessons = sorted(lessons, key=_lesson_sort_key)
-    n = sum(
-        1 for x in lessons if not _is_cancelled_flag(x.get("is_cancelled"))
-    )
-    if n % 10 == 1 and n % 100 != 11:
-        pair_word = "пара"
-    elif n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
-        pair_word = "пары"
-    else:
-        pair_word = "пар"
-    header += f"\n<b>{n} {pair_word}</b>\n"
-
-    blocks = []
-    for i, lesson in enumerate(lessons, start=1):
-        subject = (lesson.get("subject") or "Занятие").strip()
-        ltype = (lesson.get("lesson_type") or "").strip()
-        icon = TYPE_ICON.get(ltype.lower(), "📘")
-        time_slot = site_parser.remap_slot(lesson.get("time_slot") or "") or "—"
-        room = _pretty_room(lesson.get("room") or "")
-        teacher = (lesson.get("teacher") or "").strip()
-        type_line = f"{icon} {ltype}" if ltype else icon
-
-        if _is_cancelled_flag(lesson.get("is_cancelled")):
-            blocks.append(
-                f"<s>{i}. {time_slot}</s>\n"
-                f"❌ <s>{subject}</s>\n"
-                f"<i>Пара отменена</i>"
-            )
-            continue
-
-        extra = f"\n👤 {teacher}" if teacher else ""
-        try:
-            sub = int(lesson.get("subgroup") or 0)
-        except (TypeError, ValueError):
-            sub = 0
-        sub_line = f"\n👥 подгруппа {sub}" if sub in (1, 2) else ""
-        blocks.append(
-            f"<b>{i}. {time_slot}</b>\n"
-            f"{subject}{sub_line}\n"
-            f"{type_line}  ·  {room}{extra}"
-        )
-
-    return header + "\n\n" + "\n\n".join(blocks)
-
-
-async def send_day_schedule(
-    message: Message, group_name: str, group_id: int, weekday: int
-) -> None:
-    lessons = await db.get_schedule_for_day(group_id, weekday)
-    await send_long(
-        message,
-        format_day(group_name, weekday, lessons, date_for_weekday(weekday)),
-    )
-
-
-
-def _gossip_chat_id():
-    raw = str(GOSSIP_CHANNEL_ID or "").strip()
+def channel_chat_id():
+    raw = str(CHANNEL_ID or "").strip()
     if raw.startswith("-") and raw[1:].isdigit():
         return int(raw)
     if raw.isdigit():
@@ -285,1077 +52,1358 @@ def _gossip_chat_id():
     return raw
 
 
-async def require_gossip_sub(event) -> bool:
-    user = event.from_user
-    if not user:
-        return False
-    if user.id == ADMIN_ID:
-        return True
-    try:
-        member = await event.bot.get_chat_member(_gossip_chat_id(), user.id)
-        if member.status in ("member", "administrator", "creator", "restricted"):
-            return True
-    except Exception:
-        logger.exception("gossip sub check")
-    kb = InlineKeyboardMarkup(
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+router = Router()
+
+MENU = {"💬 Сплетни", "📜 Правила", "↩️ Ответить", "🎭 Ник", "👤 Админ"}
+ADMIN_MENU = {
+    "📊 Статистика",
+    "⏱ Кулдаун",
+    "🌙 Ночной режим",
+    "🔇 Снять мут",
+    "🚫 Дать мут",
+    "📢 Рассылка",
+    "👥 Список админов",
+    "➕ Добавить админа",
+    "➖ Удалить админа",
+    "💾 Экспорт БД",
+    "📥 Импорт БД",
+    "↩️ Назад",
+}
+ALL_BUTTONS = MENU | ADMIN_MENU
+ADMIN_TG = "https://t.me/gubkinhelp"
+
+# ссылки / кликабельное
+LINK_RE = re.compile(
+    r"("
+    r"https?://|"
+    r"www\.|"
+    r"t\.me/|"
+    r"telegram\.me/|"
+    r"tg://|"
+    r"@[\w\d_]{4,}|"
+    r"(?:[\w-]+\.)+(?:com|ru|net|org|io|me|xyz|info|pro|tv|cc|app|dev|site|online|link|click|top|live|shop|store|blog|page|tech|cloud|ai|uz|kz|by|ua|su)"
+    r")",
+    re.IGNORECASE,
+)
+TG_POST_RE = re.compile(
+    r"(https?://)?(t\.me|telegram\.me)/(c/\d+/|(?P<user>[A-Za-z0-9_]+)/)(?P<mid>\d+)",
+    re.IGNORECASE,
+)
+# ник: буквы (лат/кир), цифры, _ - пробел; без ссылок
+# только буквы и цифры (лат/кир), без пробелов, _ и -
+NICK_RE = re.compile(r"^[^\W_]{2,20}$", re.UNICODE)
+
+pending_media: dict[str, dict] = {}
+_counter = {"n": 0, "msg_id": None}
+
+
+class Flow(StatesGroup):
+    reply_wait_fwd = State()
+    reply_wait_text = State()
+    admin_unmute = State()
+    admin_mute_pick = State()
+    admin_mute_duration = State()
+    admin_add = State()
+    admin_remove = State()
+    admin_import_db = State()
+    admin_broadcast = State()
+    set_nick = State()
+
+
+# ─── клавиатуры ───────────────────────────────────────────────────────────────
+
+def menu_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="💬 Сплетни"), KeyboardButton(text="📜 Правила")],
+            [KeyboardButton(text="↩️ Ответить"), KeyboardButton(text="🎭 Ник")],
+            [KeyboardButton(text="👤 Админ")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def admin_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="⏱ Кулдаун")],
+            [KeyboardButton(text="🌙 Ночной режим"), KeyboardButton(text="📢 Рассылка")],
+            [KeyboardButton(text="🚫 Дать мут"), KeyboardButton(text="🔇 Снять мут")],
+            [KeyboardButton(text="👥 Список админов")],
+            [KeyboardButton(text="➕ Добавить админа"), KeyboardButton(text="➖ Удалить админа")],
+            [KeyboardButton(text="💾 Экспорт БД"), KeyboardButton(text="📥 Импорт БД")],
+            [KeyboardButton(text="↩️ Назад")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def sub_kb() -> InlineKeyboardMarkup:
+    rows = []
+    if CHANNEL_URL:
+        rows.append([InlineKeyboardButton(text="Подписаться", url=CHANNEL_URL)])
+    rows.append(
+        [InlineKeyboardButton(text="Проверить подписку", callback_data="chk")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _dispatch_menu(message: Message, state: FSMContext) -> None:
+    """Повторно обработать кнопку меню после выхода из FSM-состояния."""
+    text = message.text or ""
+    mapping = {
+        "💬 Сплетни": gossip_hint,
+        "📜 Правила": rules,
+        "↩️ Ответить": reply_start,
+        "🎭 Ник": nick_start,
+        "👤 Админ": admin_link,
+        "📊 Статистика": admin_stats,
+        "⏱ Кулдаун": admin_cooldown,
+        "🌙 Ночной режим": admin_night,
+        "🔇 Снять мут": admin_unmute_start,
+        "🚫 Дать мут": admin_mute_start,
+        "📢 Рассылка": admin_broadcast_start,
+        "👥 Список админов": admin_list,
+        "➕ Добавить админа": admin_add_start,
+        "➖ Удалить админа": admin_remove_start,
+        "💾 Экспорт БД": export_db,
+        "📥 Импорт БД": import_db_start,
+        "↩️ Назад": admin_back,
+    }
+    handler = mapping.get(text)
+    if handler:
+        await handler(message, state)
+
+
+def cooldown_kb(current: int) -> InlineKeyboardMarkup:
+    rows = []
+    row = []
+    for m in COOLDOWN_OPTIONS:
+        mark = " ✅" if m == current else ""
+        row.append(
+            InlineKeyboardButton(
+                text=f"{m} мин{mark}",
+                callback_data=f"cd:{m}",
+            )
+        )
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def night_kb(enabled: bool) -> InlineKeyboardMarkup:
+    label = "Выключить 🌙" if enabled else "Включить 🌙"
+    return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Подписаться на канал", url=GOSSIP_CHANNEL_URL)],
-            [InlineKeyboardButton(text="Проверить подписку", callback_data="gossip:chk")],
+            [InlineKeyboardButton(text=label, callback_data="night:toggle")]
         ]
     )
-    text = "Чтобы пользоваться расписанием, подпишись на канал."
-    if hasattr(event, "answer") and getattr(event, "message", None) is None:
-        await event.answer(text, reply_markup=kb)
-    elif hasattr(event, "message") and event.message:
-        await event.message.answer(text, reply_markup=kb)
-        if hasattr(event, "answer"):
-            await event.answer()
+
+
+def mute_duration_kb(uid: int) -> InlineKeyboardMarkup:
+    rows = []
+    row = []
+    labels = {
+        5: "5 мин",
+        15: "15 мин",
+        30: "30 мин",
+        60: "1 ч",
+        180: "3 ч",
+        0: "∞ навсегда",
+    }
+    for m in MUTE_OPTIONS:
+        row.append(
+            InlineKeyboardButton(
+                text=labels.get(m, f"{m} мин"),
+                callback_data=f"mute:{uid}:{m}",
+            )
+        )
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append(
+        [InlineKeyboardButton(text="Отмена", callback_data="mute:cancel")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+# ─── форматирование / фильтры ─────────────────────────────────────────────────
+
+def format_post(text: str, number: int | str, nick: str | None = None) -> str:
+    body = html.escape((text or "").strip())
+    if nick:
+        sign = f"<b>(c) {html.escape(nick)}</b>"
+    else:
+        sign = f"<b>№{number}</b>"
+    if body:
+        return f"{body}\n{sign}"
+    return sign
+
+
+def split_post_link(text: str) -> tuple[int | None, str]:
+    raw = (text or "").strip()
+    if not raw:
+        return None, ""
+    match = TG_POST_RE.search(raw)
+    if not match:
+        return None, raw
+    mid = int(match.group("mid"))
+    rest = (raw[: match.start()] + raw[match.end() :]).strip()
+    return mid, rest
+
+
+def has_forbidden_links(text: str, allow_post_link: bool = False) -> bool:
+    """Проверяет кликабельное/ссылки. allow_post_link — одна ссылка на пост канала ок."""
+    if not text:
+        return False
+    cleaned = text
+    if allow_post_link:
+        cleaned = TG_POST_RE.sub("", cleaned)
+    return bool(LINK_RE.search(cleaned))
+
+
+# entity-типы, которые делают текст кликабельным
+_FORBIDDEN_ENTITIES = {
+    "url",
+    "text_link",
+    "mention",
+    "text_mention",
+    "email",
+    "phone_number",
+}
+
+
+def message_has_forbidden_entities(message: Message, allow_post_link: bool = False) -> bool:
+    """Блокирует кликабельные entities Telegram (даже без сырого URL в тексте)."""
+    entities = list(message.entities or []) + list(message.caption_entities or [])
+    if not entities:
+        return False
+    text = message.text or message.caption or ""
+    for ent in entities:
+        et = getattr(ent, "type", None)
+        et_s = et.value if hasattr(et, "value") else str(et)
+        if et_s not in _FORBIDDEN_ENTITIES:
+            continue
+        if allow_post_link and et_s in ("url", "text_link"):
+            try:
+                chunk = text[ent.offset : ent.offset + ent.length]
+            except Exception:
+                chunk = ""
+            url = getattr(ent, "url", None) or chunk
+            if TG_POST_RE.search(str(url or "")):
+                continue  # разрешённая ссылка на пост канала
+        return True
     return False
 
 
+def validate_nick(raw: str) -> str | None:
+    """Вернёт очищенный ник или None если невалидный."""
+    nick = (raw or "").strip()
+    if len(nick) < NICK_MIN or len(nick) > NICK_MAX:
+        return None
+    if not NICK_RE.match(nick):
+        return None
+    if has_forbidden_links(nick):
+        return None
+    return nick
+
+
+def nick_delete_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🗑 Удалить ник", callback_data="nick:del")]
+        ]
+    )
+
+
+def _nick_age_sec(user: dict | None) -> float | None:
+    """Секунд с последней смены ника (на другой), или None."""
+    if not user or not user.get("nick_changed_at"):
+        return None
+    try:
+        changed = datetime.fromisoformat(
+            str(user["nick_changed_at"]).replace(" ", "T")
+        )
+        return time.time() - changed.replace(tzinfo=None).timestamp()
+    except Exception:
+        logger.exception("nick age parse")
+        return None
+
+
+def is_night_hours() -> bool:
+    now = datetime.now(TZ)
+    return NIGHT_START <= now.hour < NIGHT_END
+
+
+def fmt_left(seconds: float) -> str:
+    sec = max(0, int(seconds))
+    mins, s = divmod(sec, 60)
+    hours, mins = divmod(mins, 60)
+    if hours:
+        return f"{hours} ч {mins} мин"
+    if mins:
+        return f"{mins} мин {s} сек"
+    return f"{s} сек"
+
+
+# ─── счётчик постов ───────────────────────────────────────────────────────────
+
+MARKER = re.compile(r"·n:(\d+)·")
+
+
+def _desc_with_n(desc: str | None, n: int) -> str:
+    base = MARKER.sub("", desc or "").strip()
+    tag = f"·n:{n}·"
+    if not base:
+        return tag
+    return f"{base}\n{tag}"
+
+
+async def load_counter(bot: Bot) -> None:
+    try:
+        chat = await bot.get_chat(channel_chat_id())
+        desc = getattr(chat, "description", None) or ""
+        match = MARKER.search(desc)
+        if match:
+            _counter["n"] = int(match.group(1))
+            return
+    except Exception:
+        logger.exception("load_counter")
+    _counter["n"] = 0
+
+
+async def next_number(bot: Bot) -> int:
+    _counter["n"] = int(_counter["n"] or 0) + 1
+    n = _counter["n"]
+    try:
+        chat = await bot.get_chat(channel_chat_id())
+        desc = getattr(chat, "description", None) or ""
+        await bot.set_chat_description(channel_chat_id(), _desc_with_n(desc, n))
+    except Exception:
+        logger.exception("save_counter")
+    return n
+
+
+# ─── доступ / антифлуд ────────────────────────────────────────────────────────
+
+async def is_member(bot: Bot, user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(channel_chat_id(), user_id)
+        return member.status in (
+            "member",
+            "administrator",
+            "creator",
+            "restricted",
+        )
+    except Exception:
+        logger.exception("get_chat_member")
+        return False
+
+
+async def flood_ok(message: Message) -> bool:
+    """Кулдаун + ночной режим + ручной мут. Админы без ограничений."""
+    uid = message.from_user.id
+    try:
+        await db.touch_user(uid)
+    except Exception:
+        logger.exception("touch_user")
+    if await db.is_admin(uid):
+        return True
+
+    now = time.time()
+    rate = await db.get_rate(uid)
+
+    muted = float(rate.get("muted_until") or 0)
+    if muted > now:
+        left = muted - now
+        await message.answer(
+            f"🔇 Мут ещё {fmt_left(left)}."
+        )
+        return False
+
+    last = rate.get("last_sent_at")
+    last_f = float(last) if last else 0.0
+
+    # ночной режим (Ташкент 02:00–07:00)
+    night_on = await db.get_night_mode()
+    if night_on and is_night_hours():
+        need = NIGHT_COOLDOWN_SEC
+        if last_f and now - last_f < need:
+            left = need - (now - last_f)
+            await message.answer(
+                "🌙 Ночной режим (02:00–07:00, Ташкент).\n"
+                f"Куда так быстро, ковбой? Сможешь отправить ещё через: {fmt_left(left)}"
+            )
+            return False
+        await db.set_rate(uid, now, 0, 0)
+        return True
+
+    # обычный кулдаун
+    cd_min = await db.get_cooldown_min()
+    need = max(0, cd_min) * 60
+    if need > 0 and last_f and now - last_f < need:
+        left = need - (now - last_f)
+        await message.answer(
+            f"Куда так быстро, ковбой? Сможешь отправить ещё через: {fmt_left(left)}"
+        )
+        return False
+
+    await db.set_rate(uid, now, 0, 0)
+    return True
+
+
+async def gate(message: Message) -> bool:
+    if await db.is_admin(message.from_user.id):
+        return True
+    if not await is_member(message.bot, message.from_user.id):
+        await message.answer(
+            "📢 Сначала подпишись на канал со сплетнями.",
+            reply_markup=sub_kb(),
+        )
+        return False
+    return True
+
+
+def _from_our_channel(message: Message) -> bool:
+    cid, mid = _forward_channel_id(message)
+    return bool(cid and str(cid) == str(channel_chat_id()) and mid)
+
+
+def _forward_channel_id(message: Message) -> tuple[str | None, int | None]:
+    src = message.forward_from_chat
+    mid = message.forward_from_message_id
+    origin = getattr(message, "forward_origin", None)
+    if origin is not None:
+        chat = getattr(origin, "chat", None)
+        if chat is not None:
+            src = chat
+        mid = getattr(origin, "message_id", mid)
+    cid = str(src.id) if src else None
+    return cid, int(mid) if mid else None
+
+
+# ─── хендлеры: старт / подписка / меню ────────────────────────────────────────
+
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext) -> None:
-    if not await require_gossip_sub(message):
-        return
-    user = await db.get_user(message.from_user.id)
-    if user and user.get("group_id"):
-        await message.answer(
-            f"С возвращением 👋\n"
-            f"Группа: <b>{user['group_name']}</b>\n\n"
-            f"Жми кнопки внизу — расписание на сегодня, завтра или всю неделю.",
-            reply_markup=kb.main_menu_keyboard(),
-        )
-        return
-
-    courses = await db.get_courses()
-    if not courses:
-        await message.answer(
-            "База расписания пока пуста.\n\n"
-            "Попросите администратора выполнить /update."
-        )
-        return
-
-    await state.set_state(Registration.choosing_course)
-    await message.answer(
-        "Привет! Это расписание филиала Губкина в Ташкенте.\n\n"
-        "Шаг 1 из 2 — выбери курс:",
-        reply_markup=kb.courses_keyboard(courses),
-    )
-
-
-@router.callback_query(Registration.choosing_course, F.data.startswith("course:"))
-async def choose_course(callback: CallbackQuery, state: FSMContext) -> None:
-    course = callback.data.split(":", 1)[1]
-    await state.update_data(course=course)
-    groups = await db.get_groups(course)
-    await state.set_state(Registration.choosing_group)
-    await callback.message.edit_text(
-        f"Курс: {course}\n\nШаг 2 из 2 — выбери группу:",
-        reply_markup=kb.groups_keyboard(groups),
-    )
-    await callback.answer()
-
-
-@router.callback_query(Registration.choosing_group, F.data == "back_to_course")
-async def back_to_course(callback: CallbackQuery, state: FSMContext) -> None:
-    courses = await db.get_courses()
-    await state.set_state(Registration.choosing_course)
-    await callback.message.edit_text(
-        "Шаг 1 из 2 — выбери курс:", reply_markup=kb.courses_keyboard(courses)
-    )
-    await callback.answer()
-
-
-@router.callback_query(Registration.choosing_group, F.data.startswith("group:"))
-async def choose_group(callback: CallbackQuery, state: FSMContext) -> None:
-    group_id = int(callback.data.split(":", 1)[1])
-    data = await state.get_data()
-    course = data.get("course")
-    if not course:
-        await callback.answer("Сначала выбери курс", show_alert=True)
-        return
-
-    groups = await db.get_groups(course)
-    group_name = next((name for name, gid in groups if gid == group_id), str(group_id))
-    u = callback.from_user
-    await db.save_user(
-        u.id,
-        course,
-        group_name,
-        group_id,
-        username=u.username,
-        first_name=u.first_name,
-    )
+async def start(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(f"Готово. Твоя группа: <b>{group_name}</b>")
-    await callback.message.answer(
-        "Меню внизу экрана 👇\nСегодня · Завтра · Неделя",
-        reply_markup=kb.main_menu_keyboard(),
-    )
-    await callback.answer()
-
-
-@router.message(F.text.in_({"👤 Группа", "⚙️ Сменить группу"}))
-async def change_group(message: Message, state: FSMContext) -> None:
-    courses = await db.get_courses()
-    if not courses:
-        await message.answer("База расписания пока пуста.")
+    try:
+        await db.touch_user(message.from_user.id)
+    except Exception:
+        logger.exception("touch_user start")
+    if not await gate(message):
         return
-    await state.set_state(Registration.choosing_course)
     await message.answer(
-        "Шаг 1 из 2 — выбери курс:", reply_markup=kb.courses_keyboard(courses)
+        "<b>🤫 Отправляй 100% анонимные сообщения.</b>\n\n"
+        "Бот автоматически закинет в канал.\n"
+        "Ответ на пост: кинь ссылку на сообщение и текст в одном сообщении.\n"
+        "Ник: кнопка «🎭 Ник» — вместо номера будет (c) твой ник.",
+        reply_markup=menu_kb(),
     )
 
 
-
-@router.callback_query(F.data == "gossip:chk")
-async def gossip_chk(callback: CallbackQuery) -> None:
-    if await require_gossip_sub(callback):
-        await callback.message.answer("Подписка есть. Жми /start", reply_markup=kb.main_menu_keyboard())
-        await callback.answer("Ок")
+@router.callback_query(F.data == "chk")
+async def check_sub(callback: CallbackQuery) -> None:
+    if await is_member(callback.bot, callback.from_user.id):
+        await callback.message.answer("Подписан, свой. /start", reply_markup=menu_kb())
+        await callback.answer()
         return
     await callback.answer("Ещё не подписан", show_alert=True)
 
 
-@router.message(F.text.in_({"📅 Сегодня", "📅 На сегодня"}))
-async def today_schedule(message: Message) -> None:
-    if not await require_gossip_sub(message):
-        return
-    user = await db.get_user(message.from_user.id)
-    if not user or not user.get("group_id"):
-        await message.answer("Сначала выбери группу командой /start")
-        return
-    await send_day_schedule(
-        message, user["group_name"], user["group_id"], datetime.now(TZ).weekday()
-    )
-
-
-@router.message(F.text.in_({"🌅 Завтра", "📆 На завтра"}))
-async def tomorrow_schedule(message: Message) -> None:
-    if not await require_gossip_sub(message):
-        return
-    user = await db.get_user(message.from_user.id)
-    if not user or not user.get("group_id"):
-        await message.answer("Сначала выбери группу командой /start")
-        return
-    weekday = (datetime.now(TZ) + timedelta(days=1)).weekday()
-    await send_day_schedule(message, user["group_name"], user["group_id"], weekday)
-
-
-@router.message(F.text.in_({"🗓 Неделя", "🗓 На неделю"}))
-async def week_schedule(message: Message) -> None:
-    if not await require_gossip_sub(message):
-        return
-    user = await db.get_user(message.from_user.id)
-    if not user or not user.get("group_id"):
-        await message.answer("Сначала выбери группу командой /start")
-        return
-    week = await db.get_schedule_for_week(user["group_id"])
-    monday = week_monday()
-    for weekday in range(7):
-        day_date = monday + timedelta(days=weekday)
-        await send_long(
-            message,
-            format_day(user["group_name"], weekday, week[weekday], day_date),
-        )
-        await asyncio.sleep(0.15)
-
-
-@router.message(F.text.in_({"🔗 Сайт", "🔗 Ссылка на сайт"}))
-async def site_link(message: Message) -> None:
-    user = await db.get_user(message.from_user.id)
-    group_name = user["group_name"] if user else "не выбрана"
+@router.message(F.text == "📜 Правила")
+async def rules(message: Message, state: FSMContext) -> None:
+    await state.clear()
     await message.answer(
-        f"Официальное расписание:\n{SCHEDULE_URL}\n\n"
-        f"Твоя группа в боте: <b>{group_name}</b>"
+        "📜 <b>Правила</b>\n"
+        "1. Запрещено оскорблять студентов, администрацию и преподавательский состав филиала (по возможности)\n"
+        "2. Нельзя флудить/спамить\n"
+        "3. Запрещена реклама и любые ссылки / упоминания (@)\n"
+        "4. Запрещается обращаться к администрации канала, чтобы узнать автора сообщения\n\n"
+        "Нарушение этих правил (в особенности 1 и 2) может привести к пожизненному бану."
     )
 
 
-@router.message(F.text.in_({"💬 Админ", "Связь с админом"}))
-async def contact_admin(message: Message) -> None:
-    if is_admin(message.from_user.id):
+@router.message(F.text == "↩️ Ответить")
+async def reply_start(message: Message, state: FSMContext) -> None:
+    if not await gate(message):
+        return
+    await state.set_state(Flow.reply_wait_fwd)
+    await message.answer(
+        "↩️ Перешли пост из канала или пришли ссылку на него.\n"
+        "Можно сразу: ссылка + текст ответа."
+    )
+
+
+@router.message(Flow.reply_wait_fwd)
+async def reply_got_fwd(message: Message, state: FSMContext) -> None:
+    # кнопки меню обрабатывают свои хендлеры — только сбрасываем state
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    cid, mid = _forward_channel_id(message)
+    if cid and str(cid) == str(channel_chat_id()) and mid:
+        await state.update_data(reply_to=mid)
+        await state.set_state(Flow.reply_wait_text)
+        await message.answer("✍️ Пиши текст ответа.")
+        return
+    await state.clear()
+    await publish_text(message)
+
+
+@router.message(F.text == "👤 Админ")
+async def admin_link(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    try:
+        is_adm = await db.is_admin(message.from_user.id)
+    except Exception:
+        logger.exception("is_admin")
+        is_adm = message.from_user.id == ADMIN_ID
+
+    if is_adm:
+        try:
+            cd = await db.get_cooldown_min()
+            night = await db.get_night_mode()
+        except Exception:
+            logger.exception("admin settings")
+            cd, night = 1, True
+        night_s = "вкл" if night else "выкл"
         await message.answer(
-            "<b>Админ-панель</b>\n\nВыбери действие:",
-            reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(message.from_user.id)),
+            "🛠 <b>Админ-меню</b>\n"
+            f"• ⏱ Кулдаун: <b>{cd} мин</b>\n"
+            f"• 🌙 Ночной режим: <b>{night_s}</b> (02:00–07:00 Ташкент, раз в 30 мин)\n"
+            "• 📢 Рассылка всем, кто писал в канал\n"
+            "• 🚫 / 🔇 Дать / снять мут\n"
+            "• 👥 / ➕ / ➖ Админы\n"
+            "• 💾 / 📥 Экспорт и импорт базы\n"
+            "• ↩️ Назад",
+            reply_markup=admin_kb(),
         )
         return
-    markup = InlineKeyboardMarkup(
+    kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Написать админу", url=ADMIN_URL)]
+            [InlineKeyboardButton(text="Написать @gubkinhelp", url=ADMIN_TG)]
         ]
     )
-    await message.answer("Связь с админом:", reply_markup=markup)
+    await message.answer("Связь с админом:", reply_markup=kb)
 
 
-@router.message(F.text.in_({"ℹ️ Помощь", "/help"}))
-async def help_text(message: Message) -> None:
-    await message.answer(
-        "<b>Как пользоваться</b>\n\n"
-        "📅 Сегодня — пары на этот день\n"
-        "🌅 Завтра — пары на следующий день\n"
-        "🗓 Неделя — пн–вс текущей недели\n"
-        "Группу менять в ⚙️ Настройки\n\n"
-        "❌ Зачёркнутая пара = отменена на сайте.\n"
-        "За 5 минут до пары бот пришлёт напоминание "
-        "(время Ташкента).\n"
-        "Расписание обновляет админ после нового сбора.\n"
-        "Напоминания включаются в ⚙️ Настройки."
-    )
+# ─── ник ───────────────────────────────────────────────────────────────────────
 
-
-def _settings_text(prefs: dict, group_name: str | None) -> str:
-    on = bool(prefs.get("reminders_on", 1))
-    minutes = int(prefs.get("remind_minutes") or 5)
-    status = "включены" if on else "выключены"
-    lines = [
-        "<b>Настройки</b>",
-        "",
-        f"Группа: <b>{group_name or 'не выбрана'}</b>",
-        f"Напоминания: <b>{status}</b>",
-    ]
-    if on:
-        lines.append(f"Писать за <b>{minutes} мин</b> до пары")
-    lines.append("")
-    lines.append("Интервал виден, только если напоминания включены.")
-    return "\n".join(lines)
-
-
-@router.message(F.text == "⚙️ Настройки")
-async def open_settings(message: Message) -> None:
-    user = await db.get_user(message.from_user.id)
-    if not user:
-        await message.answer("Сначала выбери группу командой /start")
+@router.message(F.text == "🎭 Ник")
+async def nick_start(message: Message, state: FSMContext) -> None:
+    if not await gate(message):
         return
-    prefs = await db.get_user_prefs(message.from_user.id)
-    await message.answer(
-        _settings_text(prefs, user.get("group_name")),
-        reply_markup=kb.settings_keyboard(
-            bool(prefs["reminders_on"]), int(prefs["remind_minutes"])
-        ),
-    )
-
-
-@router.callback_query(F.data == "set:close")
-async def settings_close(callback: CallbackQuery) -> None:
-    try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_text("Настройки закрыты.")
-    await callback.answer()
-
-
-@router.callback_query(F.data == "set:group")
-async def settings_change_group(callback: CallbackQuery, state: FSMContext) -> None:
-    courses = await db.get_courses()
-    if not courses:
-        await callback.answer("База пуста", show_alert=True)
-        return
-    await state.set_state(Registration.choosing_course)
-    await callback.message.edit_text(
-        "Шаг 1 из 2 — выбери курс:", reply_markup=kb.courses_keyboard(courses)
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "set:rem:off")
-async def settings_rem_off(callback: CallbackQuery) -> None:
-    await db.set_reminders_on(callback.from_user.id, False)
-    await _refresh_settings(callback)
-
-
-@router.callback_query(F.data == "set:rem:on")
-async def settings_rem_on(callback: CallbackQuery) -> None:
-    await db.set_reminders_on(callback.from_user.id, True)
-    await _refresh_settings(callback)
-
-
-@router.callback_query(F.data.startswith("set:min:"))
-async def settings_minutes(callback: CallbackQuery) -> None:
-    minutes = int(callback.data.split(":")[-1])
-    await db.set_remind_minutes(callback.from_user.id, minutes)
-    await _refresh_settings(callback)
-
-
-async def _refresh_settings(callback: CallbackQuery) -> None:
-    user = await db.get_user(callback.from_user.id)
-    prefs = await db.get_user_prefs(callback.from_user.id)
-    await callback.message.edit_text(
-        _settings_text(prefs, (user or {}).get("group_name")),
-        reply_markup=kb.settings_keyboard(
-            bool(prefs["reminders_on"]), int(prefs["remind_minutes"])
-        ),
-    )
-    await callback.answer()
-
-
-@router.message(Command("setcookie"))
-async def set_cookie(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await message.answer("Кука больше не нужна. Данные берутся из schedule_cache.json.")
-
-
-@router.message(Command("merge"))
-async def cmd_merge(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await message.answer(
-        "Команда /merge отключена.\n"
-        "Пришли part1.json … part8.json — соберём один schedule_cache.json."
-    )
-
-
-@router.message(Command("update"))
-async def force_update(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    status = await message.answer("⏳ <b>Обновляю расписание...</b>\n\nПодготовка...")
-    result = await run_update(status)
-    try:
-        await status.edit_text(result)
-    except Exception:
-        logger.exception("Не удалось изменить итоговое сообщение")
-
-
-async def _update_one_group(
-    course: str,
-    group_name: str,
-    group_id: int,
-    semaphore: asyncio.Semaphore,
-    counters: dict,
-    total: int,
-    status_message: Message | None,
-) -> None:
-    async with semaphore:
-        try:
-            lessons = await asyncio.wait_for(
-                site_parser.fetch_schedule(group_id=group_id),
-                timeout=PER_GROUP_TIMEOUT,
-            )
-            if lessons:
-                await db.save_schedule_for_group(group_id, lessons)
-                counters["updated"] += 1
-            else:
-                counters["empty"] += 1
-        except ScheduleAuthError:
-            counters["auth_failed"] += 1
-        except ScheduleFormatError:
-            counters["format_failed"] += 1
-        except asyncio.TimeoutError:
-            counters["errors"] += 1
-        except Exception as exc:
-            counters["errors"] += 1
-            logger.exception("ERROR for %s (%s): %s", group_name, group_id, exc)
-
-        counters["done"] += 1
-        done = counters["done"]
-        if status_message and (done == 1 or done % 5 == 0 or done == total):
-            try:
-                await status_message.edit_text(
-                    "⏳ <b>Обновляю расписание...</b>\n\n"
-                    f"Обработано: {done}/{total}\n"
-                    f"✅ Успешно: {counters['updated']}\n"
-                    f"⚠️ Пусто: {counters['empty']}\n"
-                    f"📄 Плохой ответ: {counters['format_failed']}\n"
-                    f"❌ Ошибок: {counters['errors']}"
-                )
-            except Exception:
-                pass
-
-
-async def run_update(status_message: Message | None = None) -> str:
-    if not groups_data.GROUPS:
-        return "❌ Список групп пуст."
-
-    site_parser.invalidate_cache()
-    total = len(groups_data.GROUPS)
-
-    try:
-        await db.save_structure(groups_data.GROUPS)
-    except Exception:
-        return "❌ Не удалось сохранить список групп."
-
-    counters = {
-        "updated": 0,
-        "empty": 0,
-        "errors": 0,
-        "done": 0,
-        "auth_failed": 0,
-        "format_failed": 0,
-    }
-    semaphore = asyncio.Semaphore(UPDATE_CONCURRENCY)
-    tasks = [
-        _update_one_group(
-            course, group_name, group_id, semaphore, counters, total, status_message
+    await state.clear()
+    current = await db.get_nick(message.from_user.id)
+    if current:
+        text = (
+            f"🎭 Твой ник сейчас: <b>(c) {html.escape(current)}</b>\n\n"
+            f"Пришли новый ник ({NICK_MIN}–{NICK_MAX} символов, буквы/цифры).\n"
+            "Сменить на другой — раз в сутки."
         )
-        for course, group_name, group_id in groups_data.GROUPS
-    ]
-    await asyncio.gather(*tasks)
-
-    return (
-        "✅ <b>Обновление завершено!</b>\n\n"
-        f"Всего групп: {total}\n"
-        f"✅ Успешно: {counters['updated']}\n"
-        f"⚠️ Пустых: {counters['empty']}\n"
-        f"📄 Плохой ответ: {counters['format_failed']}\n"
-        f"❌ Ошибок: {counters['errors']}"
-    )
-
-
-# ============================================================
-# АДМИН-ПАНЕЛЬ (кнопки + совместимость со старыми /командами)
-# ============================================================
-
-def _format_user_line(p: dict) -> str:
-    name = (p.get("first_name") or "").strip() or "без имени"
-    username = (p.get("username") or "").strip()
-    uid = p.get("telegram_id")
-    link = f'<a href="tg://user?id={uid}">{name}</a>'
-    nick = f" @{username}" if username else ""
-    return f"· {link}{nick} <code>{uid}</code>"
-
-
-def _format_users_grouped(people: list[dict]) -> str:
-    """Красивый список: курс → группа → люди (новые внизу)."""
-    if not people:
-        return "Пользователей нет."
-
-    lines: list[str] = []
-    current_course = object()
-    current_group = object()
-
-    for p in people:
-        course = p.get("course") or "Без курса"
-        group = p.get("group_name") or "Без группы"
-        if course != current_course:
-            current_course = course
-            current_group = object()
-            lines.append("")
-            lines.append(f"<b>📚 {course}</b>")
-        if group != current_group:
-            current_group = group
-            lines.append(f"\n<b>  {group}</b>")
-        lines.append("  " + _format_user_line(p))
-
-    return "\n".join(lines).strip()
-
-
-async def _stats_summary_text() -> str:
-    count = await db.count_users()
-    by_course = await db.users_by_course()
-    lines = [
-        "<b>📊 Статистика</b>",
-        "",
-        f"Всего пользователей: <b>{count}</b>",
-        "",
-    ]
-    if by_course:
-        lines.append("<b>По курсам</b>")
-        for course, n in by_course:
-            lines.append(f"· {course}: <b>{n}</b>")
-    else:
-        lines.append("Пока никого нет.")
-    lines.append("")
-    lines.append("Выбери, что посмотреть подробнее:")
-    return "\n".join(lines)
-
-
-@router.callback_query(F.data == "adm:close")
-async def adm_close(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
+        await state.set_state(Flow.set_nick)
+        await message.answer(text, reply_markup=nick_delete_kb())
         return
+
+    text = (
+        "🎭 Ник не задан — в канале показывается номер.\n\n"
+        f"Пришли ник ({NICK_MIN}–{NICK_MAX} символов, буквы/цифры).\n"
+        "Вместо № будет <b>(c) твой ник</b>."
+    )
+    await state.set_state(Flow.set_nick)
+    await message.answer(text, reply_markup=menu_kb())
+
+
+@router.callback_query(F.data == "nick:del")
+async def nick_delete_cb(callback: CallbackQuery, state: FSMContext) -> None:
+    await db.clear_nick(callback.from_user.id)
+    await state.clear()
     try:
-        await callback.message.delete()
-    except Exception:
-        await callback.message.edit_text("Панель закрыта.")
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:panel")
-async def adm_panel(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    await callback.message.edit_text(
-        "<b>Админ-панель</b>\n\nВыбери действие:",
-        reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(callback.from_user.id)),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:stats")
-async def adm_stats_root(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    text = await _stats_summary_text()
-    await callback.message.edit_text(text, reply_markup=kb.admin_stats_root_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:stats:courses")
-async def adm_stats_courses(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    by_course = await db.users_by_course()
-    if not by_course:
         await callback.message.edit_text(
-            "Курсов пока нет.",
-            reply_markup=kb.admin_back_keyboard("adm:stats"),
+            "✅ Ник удалён. Снова будет нумерация.\n"
+            "Вернуть можно только тот же ник; другой — через сутки."
         )
-        await callback.answer()
-        return
-    lines = ["<b>📚 По курсам</b>", ""]
-    for course, n in by_course:
-        lines.append(f"· {course}: <b>{n}</b>")
-    lines.append("")
-    lines.append("Нажми на курс, чтобы увидеть группы и людей:")
-    await callback.message.edit_text(
-        "\n".join(lines),
-        reply_markup=kb.admin_stats_courses_keyboard(by_course),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("adm:stats:c:"))
-async def adm_stats_course_detail(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    raw = callback.data.split(":", 3)[-1]
-    # Восстанавливаем имя курса (мы заменяли : на _)
-    by_course = await db.users_by_course()
-    course = None
-    for c, _ in by_course:
-        if c.replace(":", "_")[:40] == raw:
-            course = c
-            break
-    if course is None:
-        await callback.answer("Курс не найден", show_alert=True)
-        return
-
-    by_group = await db.users_by_group()
-    groups_here = [(c, g, n) for c, g, n in by_group if c == course]
-    people = await db.list_users_by_course(course)
-
-    lines = [f"<b>📚 {course}</b>", f"Всего: <b>{len(people)}</b>", ""]
-    if groups_here:
-        lines.append("<b>Группы</b>")
-        for _, g, n in groups_here:
-            lines.append(f"· {g}: {n}")
-        lines.append("")
-    if people:
-        lines.append("<b>Люди</b> (новые внизу)")
-        current_group = object()
-        for p in people:
-            g = p.get("group_name") or "—"
-            if g != current_group:
-                current_group = g
-                lines.append(f"\n<i>{g}</i>")
-            lines.append(_format_user_line(p))
-
-    await callback.message.edit_text(
-        "\n".join(lines),
-        reply_markup=kb.admin_stats_groups_keyboard(groups_here, course_filter=course),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:stats:groups")
-async def adm_stats_groups(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    by_group = await db.users_by_group()
-    if not by_group:
-        await callback.message.edit_text(
-            "Групп пока нет.",
-            reply_markup=kb.admin_back_keyboard("adm:stats"),
-        )
-        await callback.answer()
-        return
-    lines = ["<b>👥 По группам</b>", ""]
-    current_course = object()
-    for course, group_name, n in by_group:
-        if course != current_course:
-            current_course = course
-            lines.append(f"\n<b>{course}</b>")
-        lines.append(f"· {group_name}: <b>{n}</b>")
-    lines.append("")
-    lines.append("Нажми на группу, чтобы увидеть список:")
-    await callback.message.edit_text(
-        "\n".join(lines),
-        reply_markup=kb.admin_stats_groups_keyboard(by_group),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("adm:stats:g:"))
-async def adm_stats_group_detail(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    key = callback.data.split(":", 3)[-1]
-    if "|" not in key:
-        await callback.answer("Ошибка данных", show_alert=True)
-        return
-    course_part, group_part = key.split("|", 1)
-
-    by_group = await db.users_by_group()
-    matched = None
-    for c, g, n in by_group:
-        c_key = c[:15] if len(f"{c}|{g}".encode()) > 40 else c
-        g_key = g[:20] if len(f"{c}|{g}".encode()) > 40 else g
-        if (c == course_part and g == group_part) or (
-            c_key == course_part and g_key == group_part
-        ):
-            matched = (c, g, n)
-            break
-        # fallback: startswith
-        if c.startswith(course_part) and g.startswith(group_part):
-            matched = (c, g, n)
-            break
-
-    if not matched:
-        await callback.answer("Группа не найдена", show_alert=True)
-        return
-
-    course, group_name, count = matched
-    people = await db.list_users_by_group(course, group_name)
-    lines = [
-        f"<b>{group_name}</b>",
-        f"Курс: {course}",
-        f"Людей: <b>{count}</b>",
-        "",
-        "<b>Список</b> (новые внизу)",
-        "",
-    ]
-    for p in people:
-        lines.append(_format_user_line(p))
-    if not people:
-        lines.append("Пусто.")
-
-    text = "\n".join(lines)
-    # Если слишком длинно — отправим новым сообщением
-    if len(text) > 3500:
-        await callback.message.edit_text(
-            f"<b>{group_name}</b> · {count} чел.\nСписок ниже 👇",
-            reply_markup=kb.admin_back_keyboard("adm:stats:groups"),
-        )
-        await send_long(callback.message, text)
-    else:
-        await callback.message.edit_text(
-            text,
-            reply_markup=kb.admin_back_keyboard("adm:stats:groups"),
-        )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:stats:all")
-async def adm_stats_all(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    people = await db.list_users_detailed()
-    count = len(people)
-    await callback.message.edit_text(
-        f"<b>📋 Все пользователи</b>\nВсего: <b>{count}</b>\n\nСписок ниже 👇",
-        reply_markup=kb.admin_back_keyboard("adm:stats"),
-    )
-    await callback.answer()
-    text = _format_users_grouped(people)
-    await send_long(callback.message, text)
-
-
-@router.callback_query(F.data == "adm:update")
-async def adm_update(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    await callback.answer()
-    status = await callback.message.answer("⏳ <b>Обновляю расписание...</b>\n\nПодготовка...")
-    result = await run_update(status)
-    try:
-        await status.edit_text(result)
     except Exception:
-        logger.exception("Не удалось изменить итоговое сообщение")
+        await callback.message.answer(
+            "✅ Ник удалён. Снова будет нумерация.\n"
+            "Вернуть можно только тот же ник; другой — через сутки.",
+            reply_markup=menu_kb(),
+        )
+    await callback.answer("Ник удалён")
 
 
-@router.callback_query(F.data == "adm:broadcast")
-async def adm_broadcast(callback: CallbackQuery, state: FSMContext) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
+@router.message(Flow.set_nick, F.text)
+async def nick_set(message: Message, state: FSMContext) -> None:
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
         return
-    await state.set_state(AdminBroadcast.waiting_text)
-    await callback.message.edit_text(
-        "Напиши текст рассылки одним сообщением.\n"
-        "Можно HTML: <code>&lt;b&gt;жирный&lt;/b&gt;</code>\n\n"
-        "Отмена: /cancel",
-        reply_markup=kb.admin_back_keyboard("adm:panel"),
-    )
-    await callback.answer()
 
-
-@router.callback_query(F.data == "adm:admins")
-async def adm_admins_list(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    await load_extra_admins()
-    lines = ["<b>👥 Админы</b>", "", f"Владелец: <code>{ADMIN_ID}</code>"]
-    if _extra_admins:
-        lines.append("")
-        lines.append("Дополнительно:")
-        for aid in sorted(_extra_admins):
-            lines.append(f"· <code>{aid}</code>")
-    else:
-        lines.append("")
-        lines.append("Дополнительных админов нет.")
-    if is_owner(callback.from_user.id):
-        lines.append("")
-        lines.append("Добавить/убрать — кнопки в панели или /addadmin /deladmin")
-    await callback.message.edit_text(
-        "\n".join(lines),
-        reply_markup=kb.admin_back_keyboard("adm:panel"),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:export")
-async def adm_export(callback: CallbackQuery) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    await callback.answer("Готовлю файл…")
-    rows = await db.export_users()
-    payload = json.dumps(rows, ensure_ascii=False, indent=2)
-    data = payload.encode("utf-8")
-    await callback.message.answer_document(
-        BufferedInputFile(data, filename="users_export.json"),
-        caption=f"Людей в базе: {len(rows)}\nСохрани файл. После деплоя — импорт.",
-    )
-
-
-@router.callback_query(F.data == "adm:import")
-async def adm_import(callback: CallbackQuery, state: FSMContext) -> None:
-    if not is_admin(callback.from_user.id):
-        await callback.answer()
-        return
-    await state.set_state(AdminImport.waiting_json)
-    await callback.message.edit_text(
-        "Пришли файл <code>users_export.json</code> или вставь JSON текстом.\n"
-        "Отмена: /cancel",
-        reply_markup=kb.admin_back_keyboard("adm:panel"),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:addadmin")
-async def adm_addadmin_prompt(callback: CallbackQuery) -> None:
-    if not is_owner(callback.from_user.id):
-        await callback.answer("Только владелец", show_alert=True)
-        return
-    await callback.message.edit_text(
-        "Напиши команду:\n<code>/addadmin 123456789</code>\n\n"
-        "ID можно взять у @userinfobot.",
-        reply_markup=kb.admin_back_keyboard("adm:panel"),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "adm:deladmin")
-async def adm_deladmin_prompt(callback: CallbackQuery) -> None:
-    if not is_owner(callback.from_user.id):
-        await callback.answer("Только владелец", show_alert=True)
-        return
-    await callback.message.edit_text(
-        "Напиши команду:\n<code>/deladmin 123456789</code>",
-        reply_markup=kb.admin_back_keyboard("adm:panel"),
-    )
-    await callback.answer()
-
-
-# --- Старые /команды (совместимость) ---
-
-@router.message(Command("stats"))
-async def stats(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    text = await _stats_summary_text()
-    await message.answer(text, reply_markup=kb.admin_stats_root_keyboard())
-
-
-@router.message(Command("admin"))
-async def admin_help(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await message.answer(
-        "<b>Админ-панель</b>\n\nВыбери действие:",
-        reply_markup=kb.admin_panel_keyboard(is_owner=is_owner(message.from_user.id)),
-    )
-
-
-@router.message(Command("admins"))
-async def list_admins(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await load_extra_admins()
-    lines = [f"Владелец: <code>{ADMIN_ID}</code>"]
-    if _extra_admins:
-        lines.append("Дополнительно:")
-        for aid in sorted(_extra_admins):
-            lines.append(f"· <code>{aid}</code>")
-    else:
-        lines.append("Дополнительных админов нет.")
-    await message.answer("\n".join(lines))
-
-
-@router.message(Command("addadmin"))
-async def add_admin_cmd(message: Message) -> None:
-    if not is_owner(message.from_user.id):
-        if is_admin(message.from_user.id):
-            await message.answer("Добавлять админов может только владелец.")
-        return
-    parts = (message.text or "").split()
-    if len(parts) < 2 or not parts[1].isdigit():
+    raw = (message.text or "").strip()
+    nick = validate_nick(raw)
+    if not nick:
         await message.answer(
-            "Напиши так:\n<code>/addadmin 123456789</code>\n\n"
-            "ID человек берёт у @userinfobot."
+            f"🚫 Ник не подходит.\n"
+            f"• {NICK_MIN}–{NICK_MAX} символов\n"
+            "• только буквы и цифры"
         )
         return
-    new_id = int(parts[1])
-    if new_id == ADMIN_ID:
-        await message.answer("Это и так владелец.")
+
+    user = await db.get_user(message.from_user.id)
+    current = ((user or {}).get("nick") or "").strip()
+    last = ((user or {}).get("last_nick") or "").strip()
+    age = _nick_age_sec(user)
+
+    # уже стоит этот же — ок
+    if current and nick == current:
+        await state.clear()
+        await message.answer(
+            f"ℹ️ Ник уже <b>(c) {html.escape(nick)}</b>",
+            reply_markup=menu_kb(),
+        )
         return
-    await load_extra_admins()
-    _extra_admins.add(new_id)
-    await save_extra_admins()
-    await message.answer(f"Админка выдана: <code>{new_id}</code>")
 
-
-@router.message(Command("deladmin"))
-async def del_admin_cmd(message: Message) -> None:
-    if not is_owner(message.from_user.id):
-        if is_admin(message.from_user.id):
-            await message.answer("Убирать админов может только владелец.")
+    # восстановление того же ника после удаления — без сдвига таймера
+    if not current and last and nick == last:
+        await db.set_nick(message.from_user.id, nick, bump_changed=False)
+        await state.clear()
+        await message.answer(
+            f"✅ Ник снова: <b>(c) {html.escape(nick)}</b>",
+            reply_markup=menu_kb(),
+        )
         return
-    parts = (message.text or "").split()
-    if len(parts) < 2 or not parts[1].isdigit():
-        await message.answer("Напиши так:\n<code>/deladmin 123456789</code>")
+
+    # смена на другой (или первый раз после другого) — кулдаун
+    if last and nick != last and age is not None and age < NICK_CHANGE_COOLDOWN_SEC:
+        left = NICK_CHANGE_COOLDOWN_SEC - age
+        await message.answer(
+            f"⏳ Другой ник можно поставить через {fmt_left(left)}.\n"
+            + (f"Сейчас можно только: <b>{html.escape(last)}</b>" if last else "")
+        )
         return
-    old_id = int(parts[1])
-    await load_extra_admins()
-    _extra_admins.discard(old_id)
-    await save_extra_admins()
-    await message.answer(f"Админка снята: <code>{old_id}</code>")
 
-
-@router.message(Command("exportusers"))
-async def export_users_cmd(message: Message) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    rows = await db.export_users()
-    payload = json.dumps(rows, ensure_ascii=False, indent=2)
-    data = payload.encode("utf-8")
-    await message.answer_document(
-        BufferedInputFile(data, filename="users_export.json"),
-        caption=f"Людей в базе: {len(rows)}\nСохрани файл. После деплоя — /importusers",
-    )
-
-
-@router.message(Command("importusers"))
-async def import_users_start(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await state.set_state(AdminImport.waiting_json)
-    await message.answer(
-        "Пришли файл <code>users_export.json</code> или вставь JSON текстом.\n"
-        "Отмена: /cancel"
-    )
-
-
-@router.message(AdminImport.waiting_json, Command("cancel"))
-async def import_users_cancel(message: Message, state: FSMContext) -> None:
+    await db.set_nick(message.from_user.id, nick, bump_changed=True)
     await state.clear()
-    await message.answer("Импорт отменён.")
+    await message.answer(
+        f"✅ Ник установлен: <b>(c) {html.escape(nick)}</b>",
+        reply_markup=menu_kb(),
+    )
 
 
-@router.message(AdminImport.waiting_json, F.document)
-async def import_users_file(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
+# ─── админ: статистика / кулдаун / ночь ───────────────────────────────────────
+
+@router.message(F.text == "📊 Статистика")
+async def admin_stats(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
         return
-    bot = message.bot
-    file = await bot.download(message.document)
-    raw = file.read().decode("utf-8")
-    await _apply_import(message, state, raw)
+    await state.clear()
+    now = time.time()
+    async with db.aiosqlite.connect(db.DB_PATH) as conn:
+        cur = await conn.execute("SELECT COUNT(*) FROM posts")
+        posts_count = (await cur.fetchone())[0]
+        cur = await conn.execute("SELECT COUNT(DISTINCT user_id) FROM posts")
+        authors_count = (await cur.fetchone())[0]
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM rate WHERE muted_until > ?", (now,)
+        )
+        muted_count = (await cur.fetchone())[0]
+        cur = await conn.execute(
+            "SELECT COUNT(*) FROM users WHERE nick IS NOT NULL AND nick != ''"
+        )
+        nick_count = (await cur.fetchone())[0]
+    cd = await db.get_cooldown_min()
+    night = await db.get_night_mode()
+    night_s = "вкл" if night else "выкл"
+    night_now = "да 🌙" if (night and is_night_hours()) else "нет"
+    await message.answer(
+        f"📊 <b>Статистика</b>\n"
+        f"Постов в базе: <b>{posts_count}</b>\n"
+        f"Уникальных авторов: <b>{authors_count}</b>\n"
+        f"С никами: <b>{nick_count}</b>\n"
+        f"Сейчас в муте: <b>{muted_count}</b>\n"
+        f"Текущий номер: <b>№{_counter['n']}</b>\n"
+        f"Кулдаун: <b>{cd} мин</b>\n"
+        f"Ночной режим: <b>{night_s}</b> (сейчас: {night_now})",
+        reply_markup=admin_kb(),
+    )
 
 
-@router.message(AdminImport.waiting_json)
-async def import_users_text(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
+@router.message(F.text == "⏱ Кулдаун")
+async def admin_cooldown(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
         return
-    await _apply_import(message, state, message.text or "")
+    await state.clear()
+    current = await db.get_cooldown_min()
+    await message.answer(
+        f"⏱ <b>Кулдаун между сообщениями</b>\n"
+        f"Сейчас: <b>{current} мин</b>\n\n"
+        "Выбери новый интервал. При слишком частой отправке юзер увидит:\n"
+        "«Куда так быстро, ковбой? Сможешь отправить ещё через: …»",
+        reply_markup=cooldown_kb(current),
+    )
 
 
-async def _apply_import(message: Message, state: FSMContext, raw: str) -> None:
-    raw = (raw or "").strip()
+@router.callback_query(F.data.startswith("cd:"))
+async def admin_cooldown_set(callback: CallbackQuery) -> None:
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer()
+        return
     try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        await message.answer("Это не JSON. Пришли файл от /exportusers.")
+        minutes = int(callback.data.split(":")[1])
+    except (IndexError, ValueError):
+        await callback.answer("Ошибка")
         return
-    if not isinstance(data, list):
-        await message.answer("В корне должен быть список [...].")
+    if minutes not in COOLDOWN_OPTIONS:
+        await callback.answer("Недоступно")
         return
-    ok = 0
-    skip = 0
-    for item in data:
-        if not isinstance(item, dict):
-            skip += 1
-            continue
-        try:
-            tid = int(item.get("telegram_id"))
-            gid = int(item.get("group_id"))
-        except (TypeError, ValueError):
-            skip += 1
-            continue
-        course = str(item.get("course") or "")
-        name = str(item.get("group_name") or "")
-        if not course or not name:
-            skip += 1
-            continue
-        await db.save_user(
-            tid,
-            course,
-            name,
-            gid,
-            username=item.get("username"),
-            first_name=item.get("first_name"),
-        )
-        ok += 1
+    await db.set_cooldown_min(minutes)
+    await callback.message.edit_text(
+        f"✅ Кулдаун установлен: <b>{minutes} мин</b>",
+        reply_markup=cooldown_kb(minutes),
+    )
+    await callback.answer(f"{minutes} мин")
+
+
+@router.message(F.text == "🌙 Ночной режим")
+async def admin_night(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
     await state.clear()
-    await message.answer(f"Готово. Вернул: {ok}. Пропустил: {skip}.")
-
-
-@router.message(Command("broadcast"))
-async def broadcast_start(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
-        return
-    await state.set_state(AdminBroadcast.waiting_text)
+    enabled = await db.get_night_mode()
+    status = "включён ✅" if enabled else "выключен ❌"
+    now_t = datetime.now(TZ).strftime("%H:%M")
     await message.answer(
-        "Напиши текст рассылки одним сообщением.\n"
-        "Можно HTML: <code>&lt;b&gt;жирный&lt;/b&gt;</code>\n\n"
-        "Отмена: /cancel"
+        f"🌙 <b>Ночной режим</b>\n"
+        f"Статус: <b>{status}</b>\n"
+        f"Окно: 02:00–07:00 (Ташкент)\n"
+        f"Интервал ночью: раз в 30 минут\n"
+        f"Сейчас в Ташкенте: <b>{now_t}</b>\n"
+        f"Сейчас ночь: <b>{'да' if is_night_hours() else 'нет'}</b>",
+        reply_markup=night_kb(enabled),
     )
 
 
-@router.message(Command("cancel"))
-async def broadcast_cancel(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
+@router.callback_query(F.data == "night:toggle")
+async def admin_night_toggle(callback: CallbackQuery) -> None:
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer()
         return
-    await state.clear()
-    await message.answer("Отменил.")
+    enabled = await db.get_night_mode()
+    new = not enabled
+    await db.set_night_mode(new)
+    status = "включён ✅" if new else "выключен ❌"
+    now_t = datetime.now(TZ).strftime("%H:%M")
+    await callback.message.edit_text(
+        f"🌙 <b>Ночной режим</b>\n"
+        f"Статус: <b>{status}</b>\n"
+        f"Окно: 02:00–07:00 (Ташкент)\n"
+        f"Интервал ночью: раз в 30 минут\n"
+        f"Сейчас в Ташкенте: <b>{now_t}</b>\n"
+        f"Сейчас ночь: <b>{'да' if is_night_hours() else 'нет'}</b>",
+        reply_markup=night_kb(new),
+    )
+    await callback.answer("Вкл" if new else "Выкл")
 
 
-@router.message(AdminBroadcast.waiting_text)
-async def broadcast_send(message: Message, state: FSMContext) -> None:
-    if not is_admin(message.from_user.id):
+# ─── админ: рассылка ──────────────────────────────────────────────────────────
+
+@router.message(F.text == "📢 Рассылка")
+async def admin_broadcast_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
         return
-    text = (message.html_text or message.text or "").strip()
-    if not text:
-        await message.answer("Пусто. Напиши текст или /cancel")
+    recipients = await db.list_broadcast_recipients()
+    await state.set_state(Flow.admin_broadcast)
+    await message.answer(
+        f"📢 <b>Рассылка</b>\n"
+        f"Получателей в базе бота: <b>{len(recipients)}</b>\n\n"
+        "⚠️ Telegram <b>не даёт</b> боту список подписчиков канала.\n"
+        "Пишем тем, кто хотя бы раз открыл бота /start или отправил сплетню.\n\n"
+        "Пришли текст или медиа — уйдёт всем из базы.\n"
+        "Отмена — любая кнопка меню.",
+        reply_markup=admin_kb(),
+    )
+
+
+@router.message(Flow.admin_broadcast)
+async def admin_broadcast_do(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
         return
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+
+    recipients = await db.list_broadcast_recipients()
+    if not recipients:
+        await state.clear()
+        await message.answer(
+            "База пустая: никто ещё не писал боту.\n"
+            "Список подписчиков канала через Bot API получить нельзя.\n"
+            "После /start у юзеров они появятся в рассылке.\n"
+            "Сохраняй БД через «💾 Экспорт БД» перед деплоем.",
+            reply_markup=admin_kb(),
+        )
+        return
+
     await state.clear()
-    users = await db.get_all_users()
-    status = await message.answer(f"Рассылаю {len(users)} чел...")
+    status_msg = await message.answer(
+        f"⏳ Рассылка на {len(recipients)} чел.…"
+    )
+
     ok = 0
     fail = 0
-    for user in users:
+    for i, uid in enumerate(recipients):
         try:
-            await message.bot.send_message(user["telegram_id"], text)
+            await message.bot.copy_message(
+                chat_id=uid,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+            )
             ok += 1
         except Exception:
             fail += 1
-        await asyncio.sleep(0.05)
-    await status.edit_text(f"Готово.\nДоставлено: {ok}\nНе дошло: {fail}")
+            logger.exception("broadcast to %s", uid)
+        if (i + 1) % 20 == 0:
+            await asyncio.sleep(1.0)
+        else:
+            await asyncio.sleep(0.05)
+
+    try:
+        await status_msg.edit_text(
+            f"✅ Рассылка завершена\n"
+            f"Успешно: <b>{ok}</b>\n"
+            f"Не доставлено: <b>{fail}</b>\n"
+            f"(блок бота / нет диалога / удалили чат)"
+        )
+    except Exception:
+        await message.answer(
+            f"✅ Рассылка: ок {ok}, ошибок {fail}",
+            reply_markup=admin_kb(),
+        )
 
 
-def _lesson_start_minutes(time_slot: str) -> int | None:
-    minutes = db._time_slot_to_minutes(time_slot)
-    if minutes >= 99999:
-        return None
-    return minutes
+# ─── админ: мут / размут ──────────────────────────────────────────────────────
+
+@router.message(F.text == "🔇 Снять мут")
+async def admin_unmute_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.set_state(Flow.admin_unmute)
+    muted = await db.list_muted(time.time())
+    lines = []
+    for uid, until in muted[:20]:
+        left = until - time.time()
+        lines.append(f"• <code>{uid}</code> — ещё {fmt_left(left)}")
+    extra = ""
+    if lines:
+        extra = "\n\nСейчас в муте:\n" + "\n".join(lines)
+    await message.answer(
+        "Введи <code>telegram_id</code> пользователя, которому снять мут:"
+        + extra,
+        reply_markup=admin_kb(),
+    )
 
 
-def _short_room_admin(room: str) -> str:
-    text = (room or "").strip()
-    return text.replace(" - филиал в г.Ташкент", "").strip(" -—") or "—"
+@router.message(Flow.admin_unmute, F.text)
+async def admin_unmute_do(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
+        return
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("Нужен числовой telegram_id.")
+        return
+    rate = await db.get_rate(uid)
+    await db.set_rate(uid, rate.get("last_sent_at") or 0, rate.get("streak") or 0, 0)
+    await state.clear()
+    await message.answer(f"✅ Мут снят у <code>{uid}</code>", reply_markup=admin_kb())
 
 
-async def send_pair_reminders(bot: Bot) -> None:
-    now = datetime.now(TZ)
-    weekday = now.weekday()
-    now_min = now.hour * 60 + now.minute
-    day_key = now.date().isoformat()
-    users = await db.get_all_users()
-    if not users:
+@router.message(F.text == "🚫 Дать мут")
+async def admin_mute_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.set_state(Flow.admin_mute_pick)
+    authors = await db.list_post_authors(30)
+    if not authors:
+        await message.answer(
+            "В базе пока нет авторов постов.\n"
+            "Можно ввести telegram_id вручную.",
+            reply_markup=admin_kb(),
+        )
+        return
+    # inline кнопки по авторам
+    rows = []
+    for uid in authors[:24]:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=str(uid),
+                    callback_data=f"mutepick:{uid}",
+                )
+            ]
+        )
+    rows.append(
+        [InlineKeyboardButton(text="Ввести id вручную", callback_data="mutepick:manual")]
+    )
+    await message.answer(
+        "🚫 <b>Дать мут</b>\n"
+        "Выбери автора из последних постов канала или введи id:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+    )
+
+
+@router.callback_query(F.data.startswith("mutepick:"))
+async def admin_mute_pick(callback: CallbackQuery, state: FSMContext) -> None:
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    part = callback.data.split(":", 1)[1]
+    if part == "manual":
+        await state.set_state(Flow.admin_mute_pick)
+        await callback.message.answer(
+            "Введи <code>telegram_id</code> для мута:",
+            reply_markup=admin_kb(),
+        )
+        await callback.answer()
+        return
+    try:
+        uid = int(part)
+    except ValueError:
+        await callback.answer("Ошибка")
+        return
+    await state.update_data(mute_uid=uid)
+    await state.set_state(Flow.admin_mute_duration)
+    await callback.message.answer(
+        f"Срок мута для <code>{uid}</code>:",
+        reply_markup=mute_duration_kb(uid),
+    )
+    await callback.answer()
+
+
+@router.message(Flow.admin_mute_pick, F.text)
+async def admin_mute_pick_text(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
+        return
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("Нужен числовой telegram_id.")
+        return
+    await state.update_data(mute_uid=uid)
+    await state.set_state(Flow.admin_mute_duration)
+    await message.answer(
+        f"Срок мута для <code>{uid}</code>:",
+        reply_markup=mute_duration_kb(uid),
+    )
+
+
+@router.callback_query(F.data.startswith("mute:"))
+async def admin_mute_do(callback: CallbackQuery, state: FSMContext) -> None:
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    parts = callback.data.split(":")
+    if len(parts) < 2:
+        await callback.answer()
+        return
+    if parts[1] == "cancel":
+        await state.clear()
+        await callback.message.edit_text("Отменено.")
+        await callback.answer()
+        return
+    if len(parts) != 3:
+        await callback.answer("Ошибка")
+        return
+    try:
+        uid = int(parts[1])
+        minutes = int(parts[2])
+    except ValueError:
+        await callback.answer("Ошибка")
         return
 
-    grouped: dict[int, list[dict]] = {}
-    for user in users:
-        grouped.setdefault(user["group_id"], []).append(user)
+    if minutes == 0:
+        # «навсегда» — далеко в будущем (~10 лет)
+        until = time.time() + 10 * 365 * 24 * 3600
+        label = "навсегда (до снятия)"
+    else:
+        until = time.time() + minutes * 60
+        label = fmt_left(minutes * 60)
 
-    for group_id, group_users in grouped.items():
-        lessons = await db.get_schedule_for_day(group_id, weekday)
-        for lesson in lessons:
-            if lesson.get("is_cancelled") in (1, "1", True):
-                continue
-            slot = site_parser.remap_slot(lesson.get("time_slot") or "")
-            start = _lesson_start_minutes(slot)
-            if start is None:
-                continue
-            subject = (lesson.get("subject") or "Пара").strip()
-            room = _pretty_room(lesson.get("room") or "")
-            teacher = (lesson.get("teacher") or "").strip()
-            ltype = (lesson.get("lesson_type") or "").strip()
-
-            for user in group_users:
-                if not int(user.get("reminders_on") or 0):
-                    continue
-                lead = int(user.get("remind_minutes") or 5)
-                delta = start - now_min
-                if delta < lead - 1 or delta > lead:
-                    continue
-                already = await db.reminder_was_sent(
-                    user["telegram_id"], day_key, slot, subject
-                )
-                if already:
-                    continue
-                text = (
-                    f"Через {lead} мин пара\n\n"
-                    f"<b>{slot}</b>\n"
-                    f"{subject}"
-                )
-                if ltype:
-                    text += f" ({ltype})"
-                text += f"\n{room}"
-                if teacher:
-                    text += f"\n{teacher}"
-                try:
-                    await bot.send_message(user["telegram_id"], text)
-                    await db.mark_reminder_sent(
-                        user["telegram_id"], group_id, day_key, slot, subject
-                    )
-                except Exception:
-                    logger.exception(
-                        "Не отправилось напоминание %s", user["telegram_id"]
-                    )
-                await asyncio.sleep(0.03)
+    await db.set_mute(uid, until)
+    await state.clear()
+    await callback.message.edit_text(
+        f"✅ Мут выдан <code>{uid}</code> на {label}"
+    )
+    await callback.answer("Готово")
 
 
-async def handle_health(request: web.Request) -> web.Response:
+# ─── админ: список / добавить / удалить ───────────────────────────────────────
+
+@router.message(F.text == "👥 Список админов")
+async def admin_list(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.clear()
+    admins = await db.list_admins()
+    lines = []
+    for aid in admins:
+        mark = " (главный)" if aid == ADMIN_ID else ""
+        lines.append(f"• <code>{aid}</code>{mark}")
+    text = "👥 <b>Админы:</b>\n" + ("\n".join(lines) if lines else "пусто")
+    await message.answer(text, reply_markup=admin_kb())
+
+
+@router.message(F.text == "➕ Добавить админа")
+async def admin_add_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.set_state(Flow.admin_add)
+    await message.answer(
+        "Введи <code>telegram_id</code> нового админа:",
+        reply_markup=admin_kb(),
+    )
+
+
+@router.message(Flow.admin_add, F.text)
+async def admin_add_do(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
+        return
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("Нужен числовой telegram_id.")
+        return
+    added = await db.add_admin(uid)
+    await state.clear()
+    if added:
+        await message.answer(f"✅ Админ <code>{uid}</code> добавлен", reply_markup=admin_kb())
+    else:
+        await message.answer(f"ℹ️ <code>{uid}</code> уже админ", reply_markup=admin_kb())
+
+
+@router.message(F.text == "➖ Удалить админа")
+async def admin_remove_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.set_state(Flow.admin_remove)
+    await message.answer(
+        "Введи <code>telegram_id</code> админа, которого удалить\n"
+        f"(главного <code>{ADMIN_ID}</code> удалить нельзя):",
+        reply_markup=admin_kb(),
+    )
+
+
+@router.message(Flow.admin_remove, F.text)
+async def admin_remove_do(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
+        return
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    try:
+        uid = int(message.text.strip())
+    except ValueError:
+        await message.answer("Нужен числовой telegram_id.")
+        return
+    result = await db.remove_admin(uid, protect_id=ADMIN_ID)
+    await state.clear()
+    if result == "ok":
+        await message.answer(f"✅ Админ <code>{uid}</code> удалён", reply_markup=admin_kb())
+    elif result == "protected":
+        await message.answer("🚫 Главного админа удалить нельзя", reply_markup=admin_kb())
+    else:
+        await message.answer(
+            f"ℹ️ <code>{uid}</code> не найден в списке админов",
+            reply_markup=admin_kb(),
+        )
+
+
+@router.message(F.text == "💾 Экспорт БД")
+@router.message(Command("export_db"))
+async def export_db(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.clear()
+
+    db_path = await db.export_db_path()
+    if not db_path.exists():
+        await message.answer("База ещё не создана")
+        return
+
+    try:
+        file = FSInputFile(db_path, filename="gossip.db")
+        await message.answer_document(
+            file,
+            caption=(
+                "💾 Актуальная база данных\n\n"
+                "Сохрани этот файл.\n"
+                "После деплоя отправь его боту через кнопку «📥 Импорт БД»"
+            ),
+        )
+    except Exception:
+        logger.exception("export_db")
+        await message.answer("Не удалось отправить файл")
+
+
+@router.message(F.text == "📥 Импорт БД")
+@router.message(Command("import_db"))
+async def import_db_start(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.set_state(Flow.admin_import_db)
+    await message.answer(
+        "📥 Пришли файл <code>gossip.db</code> как документ.\n"
+        "Текущая база будет полностью заменена.",
+        reply_markup=admin_kb(),
+    )
+
+
+@router.message(Flow.admin_import_db, F.document)
+async def import_db_do(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        await state.clear()
+        return
+
+    doc = message.document
+    if not (doc.file_name and doc.file_name.lower().endswith(".db")):
+        await message.answer("Нужен файл с расширением .db")
+        return
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+            await message.bot.download(doc, destination=tmp.name)
+            tmp_path = tmp.name
+
+        await db.import_db_from_file(tmp_path)
+        os.unlink(tmp_path)
+
+        await state.clear()
+        await message.answer("✅ База успешно импортирована!", reply_markup=admin_kb())
+    except Exception:
+        logger.exception("import_db")
+        await message.answer("❌ Ошибка при импорте базы")
+        await state.clear()
+
+
+@router.message(F.text == "↩️ Назад")
+async def admin_back(message: Message, state: FSMContext) -> None:
+    if not await db.is_admin(message.from_user.id):
+        return
+    await state.clear()
+    await message.answer("Обычное меню:", reply_markup=menu_kb())
+
+
+@router.message(F.text == "💬 Сплетни")
+async def gossip_hint(message: Message, state: FSMContext) -> None:
+    if not await gate(message):
+        return
+    await state.clear()
+    await message.answer("✍️ Пиши текст — уйдёт в канал анонимно.")
+
+
+@router.message(F.sticker)
+async def no_stickers(message: Message) -> None:
+    await message.answer("🚫 Стикеры нельзя.")
+
+
+# ─── публикация ───────────────────────────────────────────────────────────────
+
+async def publish_text(message: Message, reply_to: int | None = None) -> None:
+    if not await gate(message):
+        return
+    if not await flood_ok(message):
+        return
+    raw = message.text or message.caption or ""
+    link_mid, body = split_post_link(raw)
+    if reply_to is None:
+        reply_to = link_mid
+
+    # запрет ссылок / @ / доменов / entities (кроме одной ссылки на пост канала)
+    allow = bool(link_mid or reply_to)
+    if (
+        has_forbidden_links(body, allow_post_link=False)
+        or (has_forbidden_links(raw, allow_post_link=True) and not link_mid)
+        or message_has_forbidden_entities(message, allow_post_link=allow)
+    ):
+        await message.answer("Эй ковбой, полегче — ссылки и упоминания запрещены.")
+        return
+
+    if not body.strip():
+        if link_mid:
+            await message.answer("Напиши текст ответа вместе со ссылкой.")
+        return
+    try:
+        n = await next_number(message.bot)
+        nick = await db.get_nick(message.from_user.id)
+        sent = await message.bot.send_message(
+            channel_chat_id(),
+            format_post(body, n, nick=nick),
+            reply_to_message_id=reply_to,
+            disable_web_page_preview=True,
+        )
+        await db.save_post(sent.message_id, message.from_user.id)
+    except Exception:
+        logger.exception("send channel")
+        await message.answer("⚠️ Не отправилось. Проверь, что бот админ канала.")
+
+
+@router.message(Flow.reply_wait_text, F.text)
+async def reply_text(message: Message, state: FSMContext) -> None:
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    data = await state.get_data()
+    await state.clear()
+    await publish_text(message, reply_to=data.get("reply_to"))
+
+
+@router.message(_from_our_channel)
+async def channel_forward_to_reply(message: Message, state: FSMContext) -> None:
+    if message.text and message.text in ALL_BUTTONS:
+        await state.clear()
+        await _dispatch_menu(message, state)
+        return
+    if not await gate(message):
+        return
+    cid, mid = _forward_channel_id(message)
+    if await db.is_admin(message.from_user.id) and mid:
+        uid = await db.get_post_author(mid)
+        if uid:
+            try:
+                chat = await message.bot.get_chat(uid)
+                name = html.escape(chat.full_name or chat.first_name or "—")
+                uname = f" @{chat.username}" if chat.username else ""
+                who = f"{name}{uname}\n<code>{uid}</code>"
+            except Exception:
+                who = f"<code>{uid}</code>"
+            await message.answer(
+                f"🤫 Автор:\n{who}\n\nВыдать мут:",
+                reply_markup=mute_duration_kb(uid),
+            )
+        else:
+            await message.answer("🤫 Автора нет в базе (пост был до записи).")
+        return
+    await state.update_data(reply_to=mid)
+    await state.set_state(Flow.reply_wait_text)
+    await message.answer("✍️ Пиши текст ответа.")
+
+
+@router.message(F.photo | F.video | F.animation | F.document | F.voice | F.video_note)
+async def media_msg(message: Message, state: FSMContext) -> None:
+    if not await gate(message):
+        return
+    if not await flood_ok(message):
+        return
+    caption = message.caption or ""
+    link_mid, body = split_post_link(caption)
+    if (
+        has_forbidden_links(body, allow_post_link=False)
+        or has_forbidden_links(caption, allow_post_link=True)
+        or message_has_forbidden_entities(message, allow_post_link=bool(link_mid))
+    ):
+        await message.answer("Эй ковбой, полегче — ссылки и упоминания запрещены.")
+        return
+    data = await state.get_data()
+    reply_to = data.get("reply_to") or link_mid
+    await state.clear()
+    key = f"{message.from_user.id}:{message.message_id}"
+    pending_media[key] = {
+        "user_id": message.from_user.id,
+        "chat_id": message.chat.id,
+        "message_id": message.message_id,
+        "caption": body,
+        "reply_to": reply_to,
+    }
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Ок", callback_data=f"m:ok:{key}"),
+                InlineKeyboardButton(text="Нет", callback_data=f"m:no:{key}"),
+            ]
+        ]
+    )
+    for admin_id in await db.list_admins():
+        try:
+            await message.bot.copy_message(admin_id, message.chat.id, message.message_id)
+            await message.bot.send_message(
+                admin_id,
+                f"Медиа на проверку\nid {message.from_user.id}",
+                reply_markup=kb,
+            )
+        except Exception:
+            logger.exception("send media to admin %s", admin_id)
+    await message.answer("🛡 Медиафайл ушёл на ручную модерацию.")
+
+
+@router.callback_query(F.data.startswith("m:"))
+async def media_mod(callback: CallbackQuery) -> None:
+    if not await db.is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    _, decision, key = callback.data.split(":", 2)
+    item = pending_media.pop(key, None)
+    if not item:
+        await callback.answer("Уже разобрано")
+        return
+    if decision == "no":
+        await callback.answer("Нет")
+        return
+    try:
+        n = await next_number(callback.bot)
+        nick = await db.get_nick(item["user_id"])
+        sent = await callback.bot.copy_message(
+            chat_id=channel_chat_id(),
+            from_chat_id=item["chat_id"],
+            message_id=item["message_id"],
+            caption=format_post(item.get("caption") or "", n, nick=nick),
+            reply_to_message_id=item.get("reply_to"),
+        )
+        await db.save_post(sent.message_id, item["user_id"])
+    except Exception:
+        logger.exception("publish media")
+        await callback.message.answer("Не смог запостить в канал")
+    await callback.answer()
+
+
+@router.message(F.text)
+async def text_msg(message: Message, state: FSMContext) -> None:
+    if message.text and message.text in ALL_BUTTONS:
+        return
+    await state.clear()
+    await publish_text(message)
+
+
+async def handle_health(request):
     return web.Response(text="ok")
 
 
@@ -1370,31 +1418,18 @@ async def run_health_server() -> None:
 
 
 async def main() -> None:
-    logger.info("Starting Gubkin Bot")
     await db.init_db()
-    await load_extra_admins()
-
+    await db.ensure_main_admin(ADMIN_ID)
+    await run_health_server()
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+    await load_counter(bot)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
-
-    scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
-    scheduler.add_job(
-        send_pair_reminders,
-        "interval",
-        minutes=1,
-        args=[bot],
-        id="pair_reminders",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    scheduler.start()
-
-    await run_health_server()
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
+    import asyncio
+
     asyncio.run(main())
