@@ -24,7 +24,7 @@ ADMIN_URL = os.getenv(
 GOSSIP_CHANNEL_ID = os.getenv("GOSSIP_CHANNEL_ID", "-1002667144030").strip()
 GOSSIP_CHANNEL_URL = os.getenv(
     "GOSSIP_CHANNEL_URL",
-    "https://t.me/+X2EP9WhNon85YTAy",
+    "https://t.me/+XbVUN9inkQ4yZDAy",
 )
 
 
