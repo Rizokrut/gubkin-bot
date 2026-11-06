@@ -133,3 +133,12 @@ def admin_back_keyboard(callback: str = "adm:panel") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="⬅️ Назад", callback_data=callback)
     return builder.as_markup()
+
+
+def admin_remove_keyboard(ids: list[int]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for uid in ids:
+        builder.button(text=f"❌ {uid}", callback_data=f"adm:deladmin:{uid}")
+    builder.button(text="⬅️ Назад", callback_data="adm:panel")
+    builder.adjust(1)
+    return builder.as_markup()
