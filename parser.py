@@ -1,20 +1,9 @@
-"""
-Читает один schedule_cache.json с GitHub.
-
-Поддерживает два формата:
-  1) Нормализованный: groups[key].lessons = [{weekday, time_slot, subject, ...}]
-  2) Старый:         groups[key].days = {date: [lesson, ...]}
-
-Дедупликация по (weekday, time_slot, subject, room, teacher, lesson_type).
-Отменённые пары сохраняются с флагом is_cancelled.
-"""
-
 from __future__ import annotations
 
 import logging
 import time
 from datetime import date, datetime
-
+from zoneinfo import ZoneInfo
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -26,14 +15,15 @@ CACHE_TIMEOUT = httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=15.0)
 _CACHE_TTL = 60.0
 _cache: dict | None = None
 _cache_time: float = 0.0
+TZ = ZoneInfo("Asia/Tashkent")
 
 
 class ScheduleAuthError(Exception):
-    """Совместимость с main.py."""
+    pass
 
 
 class ScheduleFormatError(Exception):
-    """Совместимость с main.py."""
+    pass
 
 
 async def _load_cache() -> dict:
@@ -165,7 +155,6 @@ def _weekday(lesson: dict) -> int | None:
             return int(lesson["weekday"])
         except (TypeError, ValueError):
             return None
-    # API Губкина: weekDayNumber 1=Пн ... 7=Вс
     raw = lesson.get("weekDayNumber")
     if raw is None:
         return None
@@ -236,10 +225,6 @@ def _parse_day_key(key: str):
 
 
 def _iter_raw_lessons(info: dict):
-    """
-    API Губкина на любой date отдаёт всю неделю.
-    Берём один самый свежий снимок из days, иначе две недели смешаются.
-    """
     if not isinstance(info, dict):
         return
 
@@ -265,8 +250,8 @@ def _iter_raw_lessons(info: dict):
             dated.append((parsed, day_lessons))
 
     if dated:
-        today = date.today()
-        # Берём снимок ближайший к сегодня, иначе бот показывает чужую неделю.
+        # Используем ташкентское время вместо date.today()
+        today = datetime.now(TZ).date()
         dated.sort(key=lambda x: (abs((x[0] - today).days), -x[0].toordinal()))
         chosen = dated[0][1]
     elif undated:
@@ -308,7 +293,6 @@ def _find_group(cache: dict, group_id: int) -> dict | None:
             matches.append(info)
     if not matches:
         return None
-    # Если два ключа с одним id — берём тот, где больше пар
     matches.sort(key=lambda g: len(extract_group_lessons(g)), reverse=True)
     return matches[0]
 
