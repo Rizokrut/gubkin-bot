@@ -74,6 +74,10 @@ class UserCheckUpload(StatesGroup):
     waiting_photo = State()
 
 
+class AdminAddAdmin(StatesGroup):
+    waiting_id = State()
+
+
 _extra_admins: set[int] = set()
 
 
@@ -437,7 +441,7 @@ async def subscription_menu(event: Message | CallbackQuery) -> None:
         await event.message.edit_text(text, reply_markup=kb.subscription_tariffs_keyboard())
         await event.answer()
     else:
-        await event.message.answer(text, reply_markup=kb.subscription_tariffs_keyboard())
+        await event.answer(text, reply_markup=kb.subscription_tariffs_keyboard())
 
 
 @router.callback_query(F.data.startswith("sub:buy:"))
@@ -967,6 +971,196 @@ async def broadcast_send(message: Message, state: FSMContext) -> None:
             pass
         await asyncio.sleep(0.05)
     await status.edit_text(f"Готово. Доставлено: {ok}")
+
+
+# --- Управление админами ---
+
+def _admins_text() -> str:
+    lines = [f"👑 Владелец: <code>{ADMIN_ID}</code>"]
+    if _extra_admins:
+        lines.append("")
+        lines.append("Админы:")
+        for uid in sorted(_extra_admins):
+            lines.append(f"• <code>{uid}</code>")
+    else:
+        lines.append("\nДополнительных админов нет.")
+    return "<b>👥 Админы</b>\n\n" + "\n".join(lines)
+
+
+@router.callback_query(F.data == "adm:admins")
+async def adm_admins(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await callback.message.edit_text(_admins_text(), reply_markup=kb.admin_back_keyboard("adm:panel"))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:addadmin")
+async def adm_add_admin(callback: CallbackQuery, state: FSMContext) -> None:
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Только владелец", show_alert=True)
+        return
+    await state.set_state(AdminAddAdmin.waiting_id)
+    await callback.message.edit_text(
+        "➕ <b>Добавить админа</b>\n\n"
+        "Отправь Telegram ID пользователя (число) "
+        "или перешли любое его сообщение.\n\nОтмена: /cancel",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+    await callback.answer()
+
+
+@router.message(AdminAddAdmin.waiting_id)
+async def adm_add_admin_apply(message: Message, state: FSMContext) -> None:
+    if not is_owner(message.from_user.id):
+        return
+    new_id = None
+    fwd = getattr(message, "forward_from", None)
+    if fwd is None and getattr(message, "forward_origin", None) is not None:
+        sender = getattr(message.forward_origin, "sender_user", None)
+        fwd = sender
+    if fwd is not None:
+        new_id = fwd.id
+    else:
+        text = (message.text or "").strip()
+        if text.isdigit():
+            new_id = int(text)
+    if not new_id:
+        await message.answer("❌ Нужен числовой Telegram ID. Попробуй снова или /cancel")
+        return
+    if new_id == ADMIN_ID:
+        await message.answer("Это владелец, он уже админ.")
+        return
+    _extra_admins.add(new_id)
+    await save_extra_admins()
+    await state.clear()
+    await message.answer(
+        f"✅ Админ <code>{new_id}</code> добавлен.",
+        reply_markup=kb.admin_back_keyboard("adm:panel"),
+    )
+
+
+@router.callback_query(F.data == "adm:deladmin")
+async def adm_del_admin(callback: CallbackQuery) -> None:
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Только владелец", show_alert=True)
+        return
+    if not _extra_admins:
+        await callback.answer("Дополнительных админов нет", show_alert=True)
+        return
+    await callback.message.edit_text(
+        "➖ <b>Убрать админа</b>\n\nНажми на ID, которого нужно убрать:",
+        reply_markup=kb.admin_remove_keyboard(sorted(_extra_admins)),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:deladmin:"))
+async def adm_del_admin_apply(callback: CallbackQuery) -> None:
+    if not is_owner(callback.from_user.id):
+        await callback.answer("Только владелец", show_alert=True)
+        return
+    uid = int(callback.data.split(":")[-1])
+    _extra_admins.discard(uid)
+    await save_extra_admins()
+    await callback.answer(f"Админ {uid} убран")
+    if _extra_admins:
+        await callback.message.edit_text(
+            "➖ <b>Убрать админа</b>\n\nНажми на ID, которого нужно убрать:",
+            reply_markup=kb.admin_remove_keyboard(sorted(_extra_admins)),
+        )
+    else:
+        await callback.message.edit_text(
+            _admins_text(), reply_markup=kb.admin_back_keyboard("adm:panel")
+        )
+
+
+# --- Статистика: подразделы ---
+
+@router.callback_query(F.data == "adm:stats:courses")
+async def adm_stats_courses(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    users = await db.get_all_users()
+    counts: dict[str, int] = {}
+    for u in users:
+        counts[u.get("course") or "—"] = counts.get(u.get("course") or "—", 0) + 1
+    rows = sorted(counts.items())
+    await callback.message.edit_text(
+        "<b>📚 По курсам</b>", reply_markup=kb.admin_stats_courses_keyboard(rows)
+    )
+    await callback.answer()
+
+
+async def _group_rows() -> list[tuple[str, str, int]]:
+    users = await db.get_all_users()
+    counts: dict[tuple[str, str], int] = {}
+    for u in users:
+        key = (u.get("course") or "—", u.get("group_name") or "—")
+        counts[key] = counts.get(key, 0) + 1
+    return [(c, g, n) for (c, g), n in sorted(counts.items())]
+
+
+@router.callback_query(F.data == "adm:stats:groups")
+async def adm_stats_groups(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    await callback.message.edit_text(
+        "<b>👥 По группам</b>",
+        reply_markup=kb.admin_stats_groups_keyboard(await _group_rows()),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:stats:c:"))
+async def adm_stats_course(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    safe = callback.data.split(":", 3)[3]
+    rows = await _group_rows()
+    course = next((c for c, _, _ in rows if c.replace(":", "_")[:40] == safe), None)
+    if course is None:
+        await callback.answer("Курс не найден", show_alert=True)
+        return
+    await callback.message.edit_text(
+        f"<b>Курс {course}</b>",
+        reply_markup=kb.admin_stats_groups_keyboard(rows, course_filter=course),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:stats:g:"))
+async def adm_stats_group(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    key = callback.data.split(":", 3)[3]
+    course, _, group_name = key.partition("|")
+    users = [
+        u for u in await db.get_all_users()
+        if (u.get("group_name") or "").startswith(group_name)
+        and (u.get("course") or "").startswith(course)
+    ]
+    lines = [f"• {u.get('first_name') or '—'} @{u.get('username') or '—'} (<code>{u['telegram_id']}</code>)" for u in users[:60]]
+    text = f"<b>Группа {group_name}</b> — {len(users)} чел.\n\n" + "\n".join(lines)
+    await callback.message.edit_text(text, reply_markup=kb.admin_back_keyboard("adm:stats:groups"))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:stats:all")
+async def adm_stats_all(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer()
+        return
+    users = await db.get_all_users()
+    lines = [f"• {u.get('first_name') or '—'} @{u.get('username') or '—'} · {u.get('group_name') or '—'} (<code>{u['telegram_id']}</code>)" for u in users[-60:]]
+    text = f"<b>📋 Пользователи</b> — всего {len(users)} (последние 60)\n\n" + "\n".join(lines)
+    await callback.message.edit_text(text[:4000], reply_markup=kb.admin_back_keyboard("adm:stats"))
+    await callback.answer()
 
 
 @router.message(Command("cancel"))
