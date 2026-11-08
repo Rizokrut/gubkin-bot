@@ -21,22 +21,17 @@ ADMIN_URL = os.getenv(
     "https://t.me/gubkinhelp",
 )
 
-GOSSIP_CHANNEL_ID = os.getenv("GOSSIP_CHANNEL_ID", "-1002667144030").strip()
-GOSSIP_CHANNEL_URL = os.getenv(
-    "GOSSIP_CHANNEL_URL",
-    "https://t.me/+XbVUN9inkQ4yZDAy",
-)
-
+WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
 
 if not BOT_TOKEN:
     raise RuntimeError(
         "Не задан BOT_TOKEN. "
-        "Добавьте BOT_TOKEN в Environment Variables Render."
+        "Добавьте BOT_TOKEN в переменные окружения Amvera."
     )
 
 
 if ADMIN_ID == 0:
     raise RuntimeError(
         "Не задан ADMIN_ID. "
-        "Добавьте ADMIN_ID в Environment Variables Render."
+        "Добавьте ADMIN_ID в переменные окружения Amvera."
     )

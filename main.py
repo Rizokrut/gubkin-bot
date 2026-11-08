@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import aiosqlite
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -25,8 +26,9 @@ import database as db
 import keyboards as kb
 import groups_data
 import parser as site_parser
+import webapp
 from parser import ScheduleAuthError, ScheduleFormatError
-from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL
+from config import BOT_TOKEN, ADMIN_ID, SCHEDULE_URL, ADMIN_URL, WEBAPP_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -331,7 +333,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
             f"С возвращением 👋\n"
             f"Группа: <b>{user['group_name']}</b>\n\n"
             f"Жми кнопки внизу — расписание на сегодня, завтра или всю неделю.",
-            reply_markup=kb.main_menu_keyboard(),
+            reply_markup=kb.main_menu_keyboard(is_admin(user_id)),
         )
         return
 
@@ -397,7 +399,7 @@ async def choose_group(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text(f"Готово. Твоя группа: <b>{group_name}</b>")
     await callback.message.answer(
         "Меню внизу экрана 👇\nСегодня · Завтра · Неделя",
-        reply_markup=kb.main_menu_keyboard(),
+        reply_markup=kb.main_menu_keyboard(is_admin(u.id)),
     )
     await callback.answer()
 
@@ -667,6 +669,43 @@ async def contact_admin(message: Message) -> None:
     await message.answer("Связь с админом:", reply_markup=markup)
 
 
+@router.message(F.text == "📱 Приложение")
+async def open_webapp(message: Message) -> None:
+    uid = message.from_user.id
+    user = await db.get_user(uid)
+    if not user or not user.get("group_id"):
+        await message.answer("Сначала выбери группу командой /start")
+        return
+    if not await has_active_subscription(uid):
+        kb_pay = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="💳 Купить подписку", callback_data="menu:sub")]]
+        )
+        await message.answer(
+            "📱 <b>Приложение доступно по подписке.</b>\n\n"
+            "Расписание на телефоне, работает без интернета, заметки и ДЗ.",
+            reply_markup=kb_pay,
+        )
+        return
+    code = await webapp.create_token(uid)
+    text = (
+        "📱 <b>Приложение с расписанием</b>\n\n"
+        "<b>Как установить (iPhone):</b>\n"
+        "1. Откройте ссылку ниже в Safari\n"
+        "2. Нажмите «Поделиться» → «На экран Домой»\n"
+        "3. Запустите приложение с экрана и вставьте код\n\n"
+        f"Ваш код (нажмите, чтобы скопировать):\n<code>{code}</code>\n\n"
+        "Код личный, никому его не отправляйте. Новый код отключает старый."
+    )
+    markup = None
+    if WEBAPP_URL:
+        markup = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="Открыть приложение", url=WEBAPP_URL)]]
+        )
+    else:
+        text += "\n\n⚠️ Адрес приложения не настроен (переменная WEBAPP_URL)."
+    await message.answer(text, reply_markup=markup)
+
+
 @router.message(F.text.in_({"ℹ️ Помощь", "/help"}))
 async def help_text(message: Message) -> None:
     await message.answer(
@@ -674,6 +713,7 @@ async def help_text(message: Message) -> None:
         "📅 Сегодня — пары на этот день\n"
         "🌅 Завтра — пары на следующий день\n"
         "🗓 Неделя — пн–вс текущей недели\n"
+        "📱 Приложение — расписание на телефоне, без интернета\n"
         "💳 Подписка — управление тарифами\n"
         "👥 Рефералы — бонусные дни за друзей\n"
         "Группу менять в ⚙️ Настройки"
@@ -1231,13 +1271,10 @@ async def send_pair_reminders(bot: Bot) -> None:
                 await asyncio.sleep(0.03)
 
 
-async def handle_health(request: web.Request) -> web.Response:
-    return web.Response(text="ok")
-
-
 async def run_health_server() -> None:
     app = web.Application()
-    app.router.add_get("/", handle_health)
+    app["has_sub"] = has_active_subscription
+    webapp.register(app)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
@@ -1248,6 +1285,7 @@ async def run_health_server() -> None:
 async def main() -> None:
     logger.info("Starting Gubkin Bot")
     await db.init_db()
+    await webapp.init_web_tables()
     await load_extra_admins()
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))

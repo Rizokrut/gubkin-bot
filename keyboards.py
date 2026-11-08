@@ -19,15 +19,20 @@ def groups_keyboard(groups: list[tuple[str, int]]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def main_menu_keyboard() -> ReplyKeyboardMarkup:
+def main_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text="📅 Сегодня")
     builder.button(text="🌅 Завтра")
     builder.button(text="🗓 Неделя")
+    builder.button(text="📱 Приложение")
     builder.button(text="💳 Подписка")
     builder.button(text="👥 Рефералы")
     builder.button(text="⚙️ Настройки")
-    builder.adjust(2, 2, 2)
+    if is_admin:
+        builder.button(text="💬 Админ")
+        builder.adjust(2, 2, 2, 2)
+    else:
+        builder.adjust(2, 2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
 
