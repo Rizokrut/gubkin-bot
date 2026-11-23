@@ -1305,7 +1305,8 @@ async def main() -> None:
     )
     scheduler.start()
 
-    await run_health_server()
+    if os.getenv("ENABLE_WEB", "1").strip() != "0":
+        await run_health_server()
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

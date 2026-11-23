@@ -24,15 +24,14 @@ def main_menu_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
     builder.button(text="📅 Сегодня")
     builder.button(text="🌅 Завтра")
     builder.button(text="🗓 Неделя")
-    builder.button(text="📱 Приложение")
     builder.button(text="💳 Подписка")
     builder.button(text="👥 Рефералы")
     builder.button(text="⚙️ Настройки")
     if is_admin:
         builder.button(text="💬 Админ")
-        builder.adjust(2, 2, 2, 2)
-    else:
         builder.adjust(2, 2, 2, 1)
+    else:
+        builder.adjust(2, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
 
